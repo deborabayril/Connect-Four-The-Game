@@ -1,3 +1,23 @@
+import math
+import random
+
+def create_board():
+    return [[None for _ in range(7)] for _ in range(6)]
+
+def print_board(board):
+    for row in board:
+        print(row)
+
+def is_valid_move(board, column):
+    return 0 <= column < 7 and board[0][column] is None
+
+def make_move(board, column, player):
+    for row in range(5, -1, -1):
+        if board[row][column] is None:
+            board[row][column] = player
+            return True
+    return False
+
 def check_win(board, player):
     """Verifica se o jogador venceu."""
     # Verificar linhas
@@ -33,3 +53,95 @@ def check_draw(board):
             if cell is None:
                 return False  # Ainda há espaços vazios
     return True  # Grade cheia
+
+class Node:
+    def __init__(self, board, player, move=None, parent=None):
+        self.board = board
+        self.player = player
+        self.move = move
+        self.parent = parent
+        self.children = []
+        self.visits = 0
+        self.wins = 0
+
+    def uct(self, total_visits):
+        if self.visits == 0:
+            return float('inf')
+        return (self.wins / self.visits) + 2 * math.sqrt(math.log(total_visits) / self.visits)
+
+def select_node(node):
+    total_visits = sum(child.visits for child in node.children)
+    best_child = None
+    best_uct = -float('inf')
+
+    for child in node.children:
+        uct_value = child.uct(total_visits)
+        if uct_value > best_uct:
+            best_uct = uct_value
+            best_child = child
+
+    return best_child
+
+def expand_node(node):
+    valid_moves = [col for col in range(7) if is_valid_move(node.board, col)]
+    for move in valid_moves:
+        new_board = [row[:] for row in node.board]
+        make_move(new_board, move, node.player)
+        new_player = 'O' if node.player == 'X' else 'X'
+        child_node = Node(new_board, new_player, move, node)
+        node.children.append(child_node)
+
+def simulate(node):
+    board = [row[:] for row in node.board]
+    player = node.player
+
+    while True:
+        valid_moves = [col for col in range(7) if is_valid_move(board, col)]
+        if not valid_moves:
+            return 0  # Empate
+
+        move = random.choice(valid_moves)
+        make_move(board, move, player)
+
+        if check_win(board, player):
+            return 1  # Vitória do jogador atual
+
+        player = 'O' if player == 'X' else 'X'
+
+def backpropagate(node, result):
+    while node is not None:
+        node.visits += 1
+        node.wins += result
+        node = node.parent
+
+def mcts_move(board, player, iterations):
+    root = Node(board, player)
+
+    for _ in range(iterations):
+        node = root
+        # Seleção
+        while node.children:
+            node = select_node(node)
+
+        # Expansão
+        if not check_win(node.board, 'X' if player == 'O' else 'O') and not check_draw(node.board):
+            expand_node(node)
+            if node.children:
+                node = random.choice(node.children)
+
+        # Simulação
+        result = simulate(node)
+
+        # Retropropagação
+        backpropagate(node, result)
+
+    # Escolher o melhor movimento
+    best_move = None
+    best_visits = -1
+
+    for child in root.children:
+        if child.visits > best_visits:
+            best_visits = child.visits
+            best_move = child.move
+
+    return best_move
