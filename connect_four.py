@@ -1,17 +1,133 @@
 import math
 import random
+import os
+
+class color:
+    RED = '\033[91m'
+    YELLOW = '\033[93m'
+    GREEN = '\033[92m'
+    BLUE = '\033[94m'
+    BOLD = '\033[1m'
+    RESET = '\033[0m'
+
+def clear_terminal():
+    os.system('cls' if os.name == 'nt' else 'clear')
+
+def print_menu(invalid_input):
+    clear_terminal()
+
+    print("=========== MENU ===========")
+    print("1. Human vs Human")
+    print("2. Human vs Computer")
+    print("3. Computer vs Computer")
+    print("============================\n")
+
+    if (invalid_input):
+        print("Invalid input. Please select again.")
+    print("Choose a game mode:", end = " ")
+
+def start_game(game_mode):
+    if (game_mode == 1):
+        human_vs_human()
+    elif (game_mode == 2):
+        human_vs_computer()
+    else:
+        computer_vs_computer()
+
+def human_vs_human():
+
+    board = create_board()
+    player = "X"
+
+    while True:
+        print_board(board)
+        column = int(input(f"Jogador {player}, escolha uma coluna: "))
+
+        while not is_valid_move(board, column):
+            print_board(board)
+            print("Movimento inválido. Tente novamente.")
+            column = int(input(f"Jogador {player}, escolha uma coluna: "))
+
+        column = (int(column) - 1)
+
+        make_move(board, column, player)
+
+        if check_win(board, player):
+            print_board(board)
+            print(f"Jogador {player} venceu!")
+            break
+
+        if check_draw(board):
+            print_board(board)
+            print("Empate!")
+            break
+
+        player = "O" if player == "X" else "X"
+
+
+def human_vs_computer():
+
+    board = create_board()
+    player = "X"
+    iterations = 1000  # Número de iterações do MCTS
+
+    while True:
+        print_board(board)
+
+        if player == "X":
+            column = int(input(f"Jogador {player}, escolha uma coluna (1-7): "))
+            column -= 1
+        else:
+            column = mcts_move(board, player, iterations)
+            print(f"Jogador {player} escolheu a coluna {column + 1}")
+
+
+        if is_valid_move(board, column):
+            make_move(board, column, player)
+
+            if check_win(board, player):
+                print_board(board)
+                print(f"Jogador {player} venceu!")
+                break
+
+            if check_draw(board):
+                print_board(board)
+                print("Empate!")
+                break
+
+            player = "O" if player == "X" else "X"
+        else:
+            print("Movimento inválido. Tente novamente.")
+
+def computer_vs_computer():
+    clear_terminal()
+    print("Under Development!")
 
 def create_board():
     return [[None for _ in range(7)] for _ in range(6)]
 
 def print_board(board):
+    # outra possibilidade de print "●"
+    clear_terminal()
+
+    print("1  2  3  4  5  6  7")
     for row in board:
-        print(row)
+        for elem in row:
+            if (elem == None):
+                print(".", end = "  ")
+            elif (elem == "X"):
+                print(color.YELLOW + color.BOLD + elem + color.RESET, end = "  ")
+            else:
+                print(color.RED + color.BOLD + elem + color.RESET, end = "  ")
+        print()
+    print()
 
 def is_valid_move(board, column):
-    return 0 <= column < 7 and board[0][column] is None
+    # somente temos  que verificar se a linha do topo ainda está vazia (None)
+    return 0 <= column <= 6 and board[0][column] is None
 
 def make_move(board, column, player):
+    # verificar baixo para cima a primeira posição na coluna column que está disponível
     for row in range(5, -1, -1):
         if board[row][column] is None:
             board[row][column] = player
