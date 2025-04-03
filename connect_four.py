@@ -46,6 +46,22 @@ def print_player(player):
     else:
         return color.RED + color.BOLD + player + color.RESET
 
+def is_valid_input(input):
+    return input in ["1", "2", "3", "4", "5", "6", "7"]
+
+def valid_column_value(board, player):
+    column = input(f"Jogador {print_player(player)}, escolha uma coluna (1-7): ")
+
+    while not is_valid_input(column):
+        print_board(board)
+        print("Movimento inválido. Tente novamente.")
+        column = input(f"Jogador {print_player(player)}, escolha uma coluna: ")
+        if (is_valid_input(column)):
+            if is_valid_move(board, int(column) - 1):
+                break
+
+    return int(column) - 1
+
 def human_vs_human():
 
     board = create_board()
@@ -53,15 +69,7 @@ def human_vs_human():
 
     while True:
         print_board(board)
-        column = int(input(f"Jogador {print_player(player)}, escolha uma coluna (1-7): "))
-        column -= 1
-
-        while not is_valid_move(board, column):
-            print_board(board)
-            print("Movimento inválido. Tente novamente.")
-            column = int(input(f"Jogador {print_player(player)}, escolha uma coluna: "))
-            column -= 1
-
+        column = valid_column_value(board, player)
         make_move(board, column, player)
 
         if check_win(board, player):
@@ -76,7 +84,6 @@ def human_vs_human():
 
         player = "O" if player == "X" else "X"
 
-
 def human_vs_computer():
 
     board = create_board()
@@ -89,30 +96,24 @@ def human_vs_computer():
 
         if player == "X":
             print(str)
-            column = int(input(f"Jogador {print_player(player)}, escolha uma coluna (1-7): "))
-            column -= 1
+            column = valid_column_value(board, player)
         else:
             column = mcts_move(board, player, iterations)
-            #print(f"Jogador {player} escolheu a coluna {column + 1}")
             str = f"Jogador {print_player(player)} escolheu a coluna {column + 1}"
 
+        make_move(board, column, player)
 
-        if is_valid_move(board, column):
-            make_move(board, column, player)
+        if check_win(board, player):
+            print_board(board)
+            print(f"Jogador {print_player(player)} venceu!")
+            break
 
-            if check_win(board, player):
-                print_board(board)
-                print(f"Jogador {print_player(player)} venceu!")
-                break
+        if check_draw(board):
+            print_board(board)
+            print("Empate!")
+            break
 
-            if check_draw(board):
-                print_board(board)
-                print("Empate!")
-                break
-
-            player = "O" if player == "X" else "X"
-        else:
-            print("Movimento inválido. Tente novamente.")
+        player = "O" if player == "X" else "X"
 
 def computer_vs_computer():
     clear_terminal()
