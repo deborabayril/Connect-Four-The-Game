@@ -4,7 +4,7 @@ def main():
     print_menu(False)
     game_mode = input()
 
-    while game_mode not in ["1","2","3"]:
+    while not valid_game_mode(game_mode):
         print_menu(True)
         game_mode = input()
 

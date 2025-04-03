@@ -16,6 +16,7 @@ def clear_terminal():
 def print_menu(invalid_input):
     clear_terminal()
 
+    # print("Welcome To Connect Four!\n")
     print("=========== MENU ===========")
     print("1. Human vs Human")
     print("2. Human vs Computer")
@@ -26,6 +27,9 @@ def print_menu(invalid_input):
         print("Invalid input. Please select again.")
     print("Choose a game mode:", end = " ")
 
+def valid_game_mode(game_mode):
+    return game_mode in ["1","2","3"]
+
 def start_game(game_mode):
     if (game_mode == 1):
         human_vs_human()
@@ -34,6 +38,14 @@ def start_game(game_mode):
     else:
         computer_vs_computer()
 
+def print_player(player):
+    # outra possibilidade de print "●"
+
+    if (player == "X"):
+        return color.YELLOW + color.BOLD + player + color.RESET
+    else:
+        return color.RED + color.BOLD + player + color.RESET
+
 def human_vs_human():
 
     board = create_board()
@@ -41,20 +53,20 @@ def human_vs_human():
 
     while True:
         print_board(board)
-        column = int(input(f"Jogador {player}, escolha uma coluna: "))
+        column = int(input(f"Jogador {print_player(player)}, escolha uma coluna (1-7): "))
+        column -= 1
 
         while not is_valid_move(board, column):
             print_board(board)
             print("Movimento inválido. Tente novamente.")
-            column = int(input(f"Jogador {player}, escolha uma coluna: "))
-
-        column = (int(column) - 1)
+            column = int(input(f"Jogador {print_player(player)}, escolha uma coluna: "))
+            column -= 1
 
         make_move(board, column, player)
 
         if check_win(board, player):
             print_board(board)
-            print(f"Jogador {player} venceu!")
+            print(f"Jogador {print_player(player)} venceu!")
             break
 
         if check_draw(board):
@@ -70,16 +82,19 @@ def human_vs_computer():
     board = create_board()
     player = "X"
     iterations = 1000  # Número de iterações do MCTS
+    str = ""
 
     while True:
         print_board(board)
 
         if player == "X":
-            column = int(input(f"Jogador {player}, escolha uma coluna (1-7): "))
+            print(str)
+            column = int(input(f"Jogador {print_player(player)}, escolha uma coluna (1-7): "))
             column -= 1
         else:
             column = mcts_move(board, player, iterations)
-            print(f"Jogador {player} escolheu a coluna {column + 1}")
+            #print(f"Jogador {player} escolheu a coluna {column + 1}")
+            str = f"Jogador {print_player(player)} escolheu a coluna {column + 1}"
 
 
         if is_valid_move(board, column):
@@ -87,7 +102,7 @@ def human_vs_computer():
 
             if check_win(board, player):
                 print_board(board)
-                print(f"Jogador {player} venceu!")
+                print(f"Jogador {print_player(player)} venceu!")
                 break
 
             if check_draw(board):
@@ -107,7 +122,6 @@ def create_board():
     return [[None for _ in range(7)] for _ in range(6)]
 
 def print_board(board):
-    # outra possibilidade de print "●"
     clear_terminal()
 
     print("1  2  3  4  5  6  7")
@@ -116,9 +130,9 @@ def print_board(board):
             if (elem == None):
                 print(".", end = "  ")
             elif (elem == "X"):
-                print(color.YELLOW + color.BOLD + elem + color.RESET, end = "  ")
+                print(print_player(elem), end = "  ")
             else:
-                print(color.RED + color.BOLD + elem + color.RESET, end = "  ")
+                print(print_player(elem), end = "  ")
         print()
     print()
 
