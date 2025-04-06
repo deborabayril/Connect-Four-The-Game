@@ -38,10 +38,10 @@ def start_game(game_mode):
     else:
         computer_vs_computer()
 
-def print_player(player):
-    # outra possibilidade de print "●"
-
-    if (player == "X"):
+def player_color(player, won = None):
+    if (won):
+        return color.GREEN + color.BOLD + player + color.RESET
+    elif (player == "X"):
         return color.YELLOW + color.BOLD + player + color.RESET
     else:
         return color.RED + color.BOLD + player + color.RESET
@@ -50,12 +50,12 @@ def is_valid_input(input):
     return input in ["1", "2", "3", "4", "5", "6", "7"]
 
 def valid_column_value(board, player):
-    column = input(f"Jogador {print_player(player)}, escolha uma coluna (1-7): ")
+    column = input(f"Jogador {player_color(player)}, escolha uma coluna (1-7): ")
 
     while not is_valid_input(column):
         print_board(board)
         print("Movimento inválido. Tente novamente.")
-        column = input(f"Jogador {print_player(player)}, escolha uma coluna: ")
+        column = input(f"Jogador {player_color(player)}, escolha uma coluna: ")
         if (is_valid_input(column)):
             if is_valid_move(board, int(column) - 1):
                 break
@@ -72,9 +72,11 @@ def human_vs_human():
         column = valid_column_value(board, player)
         make_move(board, column, player)
 
-        if check_win(board, player):
-            print_board(board)
-            print(f"Jogador {print_player(player)} venceu!")
+        player_won, winning_line = check_win(board, player)
+
+        if player_won:
+            print_board(board, winning_line)
+            print(f"Jogador {player_color(player)} venceu!")
             break
 
         if check_draw(board):
@@ -99,13 +101,15 @@ def human_vs_computer():
             column = valid_column_value(board, player)
         else:
             column = mcts_move(board, player, iterations)
-            str = f"Jogador {print_player(player)} escolheu a coluna {column + 1}"
+            str = f"Jogador {player_color(player)} escolheu a coluna {column + 1}"
 
         make_move(board, column, player)
 
-        if check_win(board, player):
-            print_board(board)
-            print(f"Jogador {print_player(player)} venceu!")
+        player_won, winning_line = check_win(board, player)
+
+        if player_won:
+            print_board(board, winning_line)
+            print(f"Jogador {player_color(player)} venceu!")
             break
 
         if check_draw(board):
@@ -122,18 +126,21 @@ def computer_vs_computer():
 def create_board():
     return [[None for _ in range(7)] for _ in range(6)]
 
-def print_board(board):
+def print_board(board, winning_positions = None):
     clear_terminal()
 
     print("1  2  3  4  5  6  7")
-    for row in board:
-        for elem in row:
-            if (elem == None):
+
+    for row in range(6):
+        for col in range(7):
+            elem = board[row][col]
+
+            if elem is None:
                 print(".", end = "  ")
-            elif (elem == "X"):
-                print(print_player(elem), end = "  ")
+            elif winning_positions is not None and (row, col) in winning_positions:
+                print(player_color(elem, True), end = "  ")
             else:
-                print(print_player(elem), end = "  ")
+                print(player_color(elem), end = "  ")
         print()
     print()
 
@@ -152,30 +159,30 @@ def make_move(board, column, player):
 def check_win(board, player):
     """Verifica se o jogador venceu."""
     # Verificar linhas
-    for row in board:
+    for row in range(6):
         for col in range(4):
-            if row[col] == row[col+1] == row[col+2] == row[col+3] == player:
-                return True
+            if board[row][col] == board[row][col+1] == board[row][col+2] == board[row][col+3] == player:
+                return True, [(row, col), (row, col+1), (row, col+2), (row, col+3)]
 
     # Verificar colunas
     for col in range(7):
         for row in range(3):
             if board[row][col] == board[row+1][col] == board[row+2][col] == board[row+3][col] == player:
-                return True
+                return True, [(row, col), (row+1, col), (row+2, col), (row+3, col)]
 
     # Verificar diagonais (da esquerda para a direita)
     for row in range(3):
         for col in range(4):
             if board[row][col] == board[row+1][col+1] == board[row+2][col+2] == board[row+3][col+3] == player:
-                return True
+                return True, [(row, col), (row+1, col+1), (row+2, col+2), (row+3, col+3)]
 
     # Verificar diagonais (da direita para a esquerda)
     for row in range(3):
         for col in range(3, 7):
             if board[row][col] == board[row+1][col-1] == board[row+2][col-2] == board[row+3][col-3] == player:
-                return True
+                return True, [(row, col), (row+1, col-1), (row+2, col-2), (row+3, col-3)]
 
-    return False
+    return False, []
 
 def check_draw(board):
     """Verifica se o jogo terminou em empate."""
@@ -234,7 +241,7 @@ def simulate(node):
         move = random.choice(valid_moves)
         make_move(board, move, player)
 
-        if check_win(board, player):
+        if check_win(board, player)[0]:
             return 1  # Vitória do jogador atual
 
         player = 'O' if player == 'X' else 'X'
@@ -255,7 +262,7 @@ def mcts_move(board, player, iterations):
             node = select_node(node)
 
         # Expansão
-        if not check_win(node.board, 'X' if player == 'O' else 'O') and not check_draw(node.board):
+        if not check_win(node.board, 'X' if player == 'O' else 'O')[0] and not check_draw(node.board):
             expand_node(node)
             if node.children:
                 node = random.choice(node.children)
