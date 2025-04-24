@@ -104,14 +104,8 @@ def human_vs_computer():
 
     board = create_board()
     player = "X"
-    iterations = 300  # Número de iterações do MCTS
+    iterations = 1000  # Número de iterações do MCTS
     str = ""
-
-    # Inicialize a variável 'previous_games' para armazenar o histórico de movimentos
-    previous_games = {}
-
-    # Escolha o tipo de personalidade (isso pode ser uma entrada ou uma configuração fixa)
-    personality_type = "Agressiva"  # ou "Equilibrado", "Defensiva"
 
     while True:
         print_board(board)
@@ -120,7 +114,7 @@ def human_vs_computer():
             print(str)
             column = valid_column_value(board, player)
         else:
-            column, previous_games = mcts_move(board, player, iterations, personality_type, previous_games)
+            column = mcts_move(board, player, iterations)
             str = f"Jogador {player_color(player)} escolheu a coluna {column + 1}"
 
         make_move(board, column, player)
@@ -140,38 +134,25 @@ def human_vs_computer():
         player = "O" if player == "X" else "X"
 
 def computer_vs_computer():
-    clear_terminal()
-    print("Computador vs Computador iniciado!\n")
-
     board = create_board()
-    player = "X"  # Começa com o jogador X
-    iterations = 300  # Número de iterações do MCTS
-    personality_type = "Equilibrado"  # Pode ser "Agressiva", "Defensiva" ou "Equilibrado"
-    previous_games = {}  # Dicionário vazio para armazenar os jogos anteriores
-
+    player = "X"
+    iterations = 1000  # Número de iterações do MCTS
+    round_counter = 1
 
     while True:
         print_board(board)
+        print(f"Rodada {round_counter}: Jogador {player_color(player)} está pensando...")
 
-        # Jogada do jogador "X"
-        if player == "X":
-            column, previous_games = mcts_move(board, player, iterations, personality_type, previous_games)
-            print(f"Jogador {player} escolheu a coluna {column + 1}")        
-        else:
-            column, previous_games = mcts_move(board, player, iterations, personality_type, previous_games)
-            print(f"Jogador {player} escolheu a coluna {column + 1}")
-
+        column = mcts_move(board, player, iterations)
         make_move(board, column, player)
 
-        print(f"Chamando save_game_to_csv para o jogador {player} na coluna {column + 1}")
-        # Salvar o estado do jogo e a jogada no CSV
-        save_game_to_csv(board, player, column)
-
+        print(f"Jogador {player_color(player)} escolheu a coluna {column + 1}")
+        
         player_won, winning_line = check_win(board, player)
 
         if player_won:
             print_board(board, winning_line)
-            print(f"Jogador {player} venceu!")
+            print(f"Jogador {player_color(player)} venceu!")
             break
 
         if check_draw(board):
@@ -179,8 +160,8 @@ def computer_vs_computer():
             print("Empate!")
             break
 
-        # Alternar entre X e O
         player = "O" if player == "X" else "X"
+        round_counter += 1
 
 def create_board():
     return [[None for _ in range(7)] for _ in range(6)]
@@ -287,39 +268,23 @@ def expand_node(node):
         new_player = 'O' if node.player == 'X' else 'X'
         child_node = Node(new_board, new_player, move, node)
         node.children.append(child_node)
-import random
 
-def simulate(node, exploration_factor=0.1):
-    """
-    Função de simulação com maior aleatoriedade.
-    Explora múltiplas possibilidades durante a simulação.
-    """
+def simulate(node):
     board = [row[:] for row in node.board]
     player = node.player
 
     while True:
         valid_moves = [col for col in range(7) if is_valid_move(board, col)]
-        
         if not valid_moves:
-            return 0  # Empate (sem movimentos válidos)
+            return 0  # Empate
 
-        # Aleatoriedade maior na escolha do movimento
-        # Exploração pode ser mais ou menos agressiva, dependendo da chance
-        if random.random() < exploration_factor:  
-            move = random.choice(valid_moves)  # Escolhe um movimento aleatório
-        else:
-            # Usar heurísticas ou um modelo mais simples para escolher o movimento preferido
-            move = max(valid_moves, key=lambda col: evaluate_move(board, col, player))
-
+        move = random.choice(valid_moves)
         make_move(board, move, player)
 
-        # Verificar se alguém venceu
         if check_win(board, player)[0]:
             return 1  # Vitória do jogador atual
 
-        # Alternar jogador
         player = 'O' if player == 'X' else 'X'
-
 
 def backpropagate(node, result):
     while node is not None:
@@ -327,79 +292,11 @@ def backpropagate(node, result):
         node.wins += result
         node = node.parent
 
-def adaptive_strategy(board, player):
-    # Verificar se há possibilidade de vitória para o jogador atual ou para o adversário
-    player_win, _ = check_win(board, player)
-    opponent = 'O' if player == 'X' else 'X'
-    opponent_win, _ = check_win(board, opponent)
-
-    if player_win:
-        return "Ataque"  # Prioriza vitória
-    elif opponent_win:
-        return "Defesa"  # Prioriza bloquear o adversário
-    else:
-        return "Equilibrado"  # Usa MCTS normal
-
-
-def evaluate_move(board, move, player):
-    # Simula a jogada
-    new_board = [row[:] for row in board]
-    make_move(new_board, move, player)
-
-    # Avaliar a jogada
-    points = 0
-
-    # 1 ponto por vitória
-    if check_win(new_board, player)[0]:
-        points += 1
-
-    # 0.8 ponto por bloqueio
-    opponent = 'O' if player == 'X' else 'X'
-    if check_win(new_board, opponent)[0]:
-        points += 0.8
-
-    # 0.5 ponto por proximidade de vitória
-    for row in range(6):
-        for col in range(7):
-            if new_board[row][col] == player:
-                if check_win(new_board, player)[0]:
-                    points += 0.5
-
-    # 0.3 ponto por posição estratégica (preferência por centro)
-    if move in [3, 4]:  # Posições centrais
-        points += 0.3
-
-    return points
-
-
-def choose_personality(personality_type):
-    if personality_type == "Agressiva":
-        return "Ataque"
-    elif personality_type == "Defensiva":
-        return "Defesa"
-    else:
-        return "Equilibrado"
-
-
-def learn_from_history(previous_games, current_move, result):
-    # Armazenar o movimento e seu resultado no histórico
-    previous_games[current_move] = result
-    # Este histórico pode ser usado em jogadas futuras
-    return previous_games
-
-
-def mcts_move(board, player, iterations, personality_type, previous_games):
-    # Escolhe a estratégia baseada na situação do jogo
-    strategy = adaptive_strategy(board, player)
-
-    # Seleciona a personalidade desejada
-    personality = choose_personality(personality_type)
-
+def mcts_move(board, player, iterations):
     root = Node(board, player)
 
     for _ in range(iterations):
         node = root
-
         # Seleção
         while node.children:
             node = select_node(node)
@@ -410,33 +307,19 @@ def mcts_move(board, player, iterations, personality_type, previous_games):
             if node.children:
                 node = random.choice(node.children)
 
-        # Simulação com base na estratégia
-        if strategy == "Ataque":
-            # Priorizando a vitória, pontuação de 1
-            result = evaluate_move(node.board, node.move, player) + 1
-        elif strategy == "Defesa":
-            # Priorizando o bloqueio, pontuação de 0.8
-            result = evaluate_move(node.board, node.move, player) + 0.8
-        else:
-            # Estratégia equilibrada, MCTS normal
-            result = simulate(node)
+        # Simulação
+        result = simulate(node)
 
         # Retropropagação
         backpropagate(node, result)
 
-    # Escolher o melhor movimento com base na pontuação e histórico
+    # Escolher o melhor movimento
     best_move = None
     best_visits = -1
-    best_score = -float('inf')
 
     for child in root.children:
-        score = evaluate_move(board, child.move, player)
-        if score > best_score:
-            best_score = score
-            best_move = child.move
+        if child.visits > best_visits:
             best_visits = child.visits
+            best_move = child.move
 
-    # Aprendizado: Armazena o resultado do movimento e o histórico
-    previous_games = learn_from_history(previous_games, best_move, result)
-
-    return best_move, previous_games
+    return best_move
