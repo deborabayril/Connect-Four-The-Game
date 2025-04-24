@@ -101,7 +101,6 @@ def human_vs_human():
         player = "O" if player == "X" else "X"
 
 def human_vs_computer():
-
     board = create_board()
     player = "X"
     iterations = 1000  # Número de iterações do MCTS
@@ -113,8 +112,10 @@ def human_vs_computer():
         if player == "X":
             print(str)
             column = valid_column_value(board, player)
+            save_game_to_csv(board, player, column)  # Salvando o estado após jogada humana
         else:
             column = mcts_move(board, player, iterations)
+            save_game_to_csv(board, player, column)  # Salvando o estado após jogada do computador
             str = f"Jogador {player_color(player)} escolheu a coluna {column + 1}"
 
         make_move(board, column, player)
@@ -144,6 +145,7 @@ def computer_vs_computer():
         print(f"Rodada {round_counter}: Jogador {player_color(player)} está pensando...")
 
         column = mcts_move(board, player, iterations)
+        save_game_to_csv(board, player, column)  # Salvando o estado após jogada da IA
         make_move(board, column, player)
 
         print(f"Jogador {player_color(player)} escolheu a coluna {column + 1}")
