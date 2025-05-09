@@ -4,6 +4,7 @@ import os
 import csv
 import time
 
+uctConstant = math.sqrt(2)
 iterations = 1000
 
 class color:
@@ -262,7 +263,7 @@ class Node:
     def uct(self, total_visits):
         if self.visits == 0:
             return float('inf')
-        return (self.wins / self.visits) + 2 * math.sqrt(math.log(total_visits) / self.visits)
+        return (self.wins / self.visits) + uctConstant * math.sqrt(math.log(total_visits) / self.visits)
 
 
 def select_node(node):
