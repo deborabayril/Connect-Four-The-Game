@@ -78,7 +78,7 @@ def save_game_to_csv(board, player, column, file_name="jogos_connect_four.csv"):
     with open(file_name, mode='a', newline='') as file:
         writer = csv.writer(file)
         writer.writerow(data)
-        print(f"Salvando dados: {data}")
+        # print(f"Salvando dados: {data}")
 
 def human_vs_human():
     board = create_board()
@@ -141,7 +141,6 @@ def human_vs_computer():
 
         player = "O" if player == "X" else "X"
 
-
 def computer_vs_computer():
     board = create_board()
     player = "X"
@@ -172,10 +171,8 @@ def computer_vs_computer():
         player = "O" if player == "X" else "X"
         round_counter += 1
 
-
 def create_board():
     return [[None for _ in range(7)] for _ in range(6)]
-
 
 def print_board(board, winning_positions=None):
     clear_terminal()
@@ -195,11 +192,9 @@ def print_board(board, winning_positions=None):
         print()
     print()
 
-
 def is_valid_move(board, column):
     # somente temos  que verificar se a linha do topo ainda está vazia (None)
     return 0 <= column <= 6 and board[0][column] is None
-
 
 def make_move(board, column, player):
     # verificar baixo para cima a primeira posição na coluna column que está disponível
@@ -208,7 +203,6 @@ def make_move(board, column, player):
             board[row][column] = player
             return True
     return False
-
 
 def check_win(board, player):
     """Verifica se o jogador venceu."""
@@ -240,7 +234,6 @@ def check_win(board, player):
 
     return False, []
 
-
 def check_draw(board):
     """Verifica se o jogo terminou em empate."""
     for row in board:
@@ -248,7 +241,6 @@ def check_draw(board):
             if cell is None:
                 return False  # Ainda há espaços vazios
     return True  # Grade cheia
-
 
 class Node:
     def __init__(self, board, player, move=None, parent=None):
@@ -265,7 +257,6 @@ class Node:
             return float('inf')
         return (self.wins / self.visits) + uctConstant * math.sqrt(math.log(total_visits) / self.visits)
 
-
 def select_node(node):
     total_visits = sum(child.visits for child in node.children)
     best_child = None
@@ -279,7 +270,6 @@ def select_node(node):
 
     return best_child
 
-
 def expand_node(node):
     valid_moves = [col for col in range(7) if is_valid_move(node.board, col)]
     for move in valid_moves:
@@ -288,7 +278,6 @@ def expand_node(node):
         new_player = 'O' if node.player == 'X' else 'X'
         child_node = Node(new_board, new_player, move, node)
         node.children.append(child_node)
-
 
 def simulate(node):
     board = [row[:] for row in node.board]
@@ -307,14 +296,12 @@ def simulate(node):
 
         player = 'O' if player == 'X' else 'X'
 
-
 def backpropagate(node, result):
     while node is not None:
         won = 0 if node.player == result else 1
         node.visits += 1
         node.wins += won
         node = node.parent
-
 
 def mcts_move(board, player):
     root = Node(board, player)
