@@ -102,7 +102,7 @@ def human_vs_human():
             print("Draw!")
             break
 
-        player = "O" if player == "X" else "X"
+        player = oppositePlayer(player)
 
 def human_vs_computer():
     board = create_board()
@@ -139,7 +139,7 @@ def human_vs_computer():
             print("Draw!")
             break
 
-        player = "O" if player == "X" else "X"
+        player = oppositePlayer(player)
 
 def computer_vs_computer():
     board = create_board()
@@ -168,7 +168,7 @@ def computer_vs_computer():
             print("Empate!")
             break
 
-        player = "O" if player == "X" else "X"
+        player = oppositePlayer(player)
         round_counter += 1
 
 def create_board():
@@ -191,6 +191,11 @@ def print_board(board, winning_positions=None):
                 print(player_color(elem), end="  ")
         print()
     print()
+
+def oppositePlayer(player):
+    if player == "X":
+        return 'O'
+    return 'X'
 
 def is_valid_move(board, column):
     # somente temos  que verificar se a linha do topo ainda está vazia (None)
@@ -274,7 +279,7 @@ def expand_node(node):
     for move in valid_moves:
         new_board = [row[:] for row in node.board]
         make_move(new_board, move, node.player)
-        new_player = 'O' if node.player == 'X' else 'X'
+        new_player = oppositePlayer(node.player)
         child_node = Node(new_board, new_player, move, node)
         node.children.append(child_node)
 
@@ -293,7 +298,7 @@ def simulate(node):
         if check_win(board, player)[0]:
             return player  # Vitória do jogador atual
 
-        player = 'O' if player == 'X' else 'X'
+        player = oppositePlayer(player)
 
 def backpropagate(node, result):
     while node is not None:
@@ -312,7 +317,7 @@ def mcts_move(board, player):
             node = select_node(node)
 
         # Expansão
-        if not check_win(node.board, 'X' if player == 'O' else 'O')[0] and not check_draw(node.board):
+        if not check_win(node.board, oppositePlayer(player))[0] and not check_draw(node.board):
             expand_node(node)
             if node.children:
                 node = random.choice(node.children)
