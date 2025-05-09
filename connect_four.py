@@ -4,6 +4,7 @@ import os
 import csv
 import time
 
+iterations = 1000
 
 class color:
     RED = '\033[91m'
@@ -13,10 +14,8 @@ class color:
     BOLD = '\033[1m'
     RESET = '\033[0m'
 
-
 def clear_terminal():
     os.system('cls' if os.name == 'nt' else 'clear')
-
 
 def print_menu(invalid_input):
     clear_terminal()
@@ -30,12 +29,10 @@ def print_menu(invalid_input):
 
     if (invalid_input):
         print("Invalid input. Please select again.")
-    print("Choose a game mode:", end=" ")
-
+    print("Choose a game mode:", end = " ")
 
 def valid_game_mode(game_mode):
     return game_mode in ["1", "2", "3"]
-
 
 def start_game(game_mode):
     if (game_mode == 1):
@@ -45,7 +42,6 @@ def start_game(game_mode):
     else:
         computer_vs_computer()
 
-
 def player_color(player, won=None):
     if (won):
         return color.GREEN + color.BOLD + player + color.RESET
@@ -54,24 +50,21 @@ def player_color(player, won=None):
     else:
         return color.RED + color.BOLD + player + color.RESET
 
-
 def is_valid_input(input):
     return input in ["1", "2", "3", "4", "5", "6", "7"]
 
-
 def valid_column_value(board, player):
-    column = input(f"Jogador {player_color(player)}, escolha uma coluna (1-7): ")
+    column = input(f"Player {player_color(player)}, choose a column (1-7): ")
 
     while not is_valid_input(column):
         print_board(board)
         print("Movimento inválido. Tente novamente.")
-        column = input(f"Jogador {player_color(player)}, escolha uma coluna: ")
+        column = input(f"Player {player_color(player)}, choose a column: ")
         if (is_valid_input(column)):
             if is_valid_move(board, int(column) - 1):
                 break
 
     return int(column) - 1
-
 
 def save_game_to_csv(board, player, column, file_name="jogos_connect_four.csv"):
     # Registra o estado do jogo antes da jogada
@@ -86,7 +79,6 @@ def save_game_to_csv(board, player, column, file_name="jogos_connect_four.csv"):
         writer.writerow(data)
         print(f"Salvando dados: {data}")
 
-
 def human_vs_human():
     board = create_board()
     player = "X"
@@ -100,27 +92,27 @@ def human_vs_human():
 
         if player_won:
             print_board(board, winning_line)
-            print(f"Jogador {player_color(player)} venceu!")
+            print(f"Player {player_color(player)} chose column {column + 1}")
+            print(f"Player {player_color(player)} won!")
             break
 
         if check_draw(board):
             print_board(board)
-            print("Empate!")
+            print("Draw!")
             break
 
         player = "O" if player == "X" else "X"
 
-
 def human_vs_computer():
     board = create_board()
     player = "X"
-    str = ""
+    mctsChosenColumn = ""
 
     while True:
         print_board(board)
 
         if player == "X":
-            print(str)
+            print(mctsChosenColumn)
             column = valid_column_value(board, player)
             save_game_to_csv(board, player, column)  # Salvando o estado após jogada humana
         else:
@@ -129,7 +121,7 @@ def human_vs_computer():
             column = mcts_move(board, player)
             save_game_to_csv(board, player, column)  # Salvando o estado após jogada do computador
             elapsed_time = time.time() - start_time
-            str = f"Tempo demorado: {elapsed_time:.2f}s\nJogador {player_color(player)} escolheu a coluna {column + 1}"
+            mctsChosenColumn = f"Player {player_color(player)} chose column {column + 1} in {elapsed_time:.3f}s"
 
         make_move(board, column, player)
 
@@ -137,12 +129,13 @@ def human_vs_computer():
 
         if player_won:
             print_board(board, winning_line)
-            print(f"Jogador {player_color(player)} venceu!")
+            print(f"Player {player_color(player)} chose column {column + 1}")
+            print(f"Player {player_color(player)} won!")
             break
 
         if check_draw(board):
             print_board(board)
-            print("Empate!")
+            print("Draw!")
             break
 
         player = "O" if player == "X" else "X"
@@ -167,7 +160,7 @@ def computer_vs_computer():
 
         if player_won:
             print_board(board, winning_line)
-            print(f"Jogador {player_color(player)} venceu!")
+            print(f"Player {player_color(player)} won!")
             break
 
         if check_draw(board):
@@ -325,7 +318,7 @@ def backpropagate(node, result):
 def mcts_move(board, player):
     root = Node(board, player)
 
-    for _ in range(10000):
+    for _ in range(iterations):
         node = root
         # Seleção
         while node.children:
