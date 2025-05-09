@@ -252,18 +252,17 @@ class Node:
         self.visits = 0
         self.wins = 0
 
-    def uct(self, total_visits):
+    def uct(self):
         if self.visits == 0:
             return float('inf')
-        return (self.wins / self.visits) + uctConstant * math.sqrt(math.log(total_visits) / self.visits)
+        return (self.wins / self.visits) + uctConstant * math.sqrt(math.log(self.parent.visits) / self.visits)
 
 def select_node(node):
-    total_visits = sum(child.visits for child in node.children)
     best_child = None
     best_uct = -float('inf')
 
     for child in node.children:
-        uct_value = child.uct(total_visits)
+        uct_value = child.uct()
         if uct_value > best_uct:
             best_uct = uct_value
             best_child = child
