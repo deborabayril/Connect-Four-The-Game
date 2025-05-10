@@ -4,8 +4,9 @@ import os
 import csv
 import time
 
+# Global variables
 uctConstant = math.sqrt(2)
-iterations = 1000
+iterations = 10000
 
 class color:
     RED = '\033[91m'
@@ -54,12 +55,14 @@ def player_color(player, won=None):
 def is_valid_input(input):
     return input in ["1", "2", "3", "4", "5", "6", "7"]
 
-def valid_column_value(board, player):
+def valid_column_value(board, turn, player, last_mcsts_move = None):
     column = input(f"Player {player_color(player)}, choose a column (1-7): ")
 
     while not is_valid_input(column):
-        print_board(board)
-        print("Movimento inválido. Tente novamente.")
+        print_board(board, turn)
+        if (last_mcsts_move):
+            print(last_mcsts_move)
+        print("Invalid move. Try again.")
         column = input(f"Player {player_color(player)}, choose a column: ")
         if (is_valid_input(column)):
             if is_valid_move(board, int(column) - 1):
@@ -67,7 +70,7 @@ def valid_column_value(board, player):
 
     return int(column) - 1
 
-def save_game_to_csv(board, player, column, file_name="jogos_connect_four.csv"):
+def save_game_to_csv(board, player, column, file_name = "jogos_connect_four.csv"):
     # Registra o estado do jogo antes da jogada
     state = str(board)
 
@@ -83,100 +86,118 @@ def save_game_to_csv(board, player, column, file_name="jogos_connect_four.csv"):
 def human_vs_human():
     board = create_board()
     player = "X"
+    turn = 1
 
     while True:
-        print_board(board)
-        column = valid_column_value(board, player)
+        print_board(board, turn)
+        column = valid_column_value(board, turn, player)
         make_move(board, column, player)
-
         player_won, winning_line = check_win(board, player)
 
         if player_won:
-            print_board(board, winning_line)
+            print_board(board, turn, winning_line)
             print(f"Player {player_color(player)} chose column {column + 1}")
             print(f"Player {player_color(player)} won!")
             break
 
-        if check_draw(board):
-            print_board(board)
+        if check_draw(turn):
+            print_board(board, turn)
             print("Draw!")
             break
 
         player = oppositePlayer(player)
+        turn += 1
 
 def human_vs_computer():
     board = create_board()
     player = "X"
-    mctsChosenColumn = ""
+    playerChosenColumn = -1
+    mctsChosenColumn = -1
+    turn = 1
+    str = ""
+
+    root = None
 
     while True:
-        print_board(board)
+        print_board(board, turn)
 
         if player == "X":
-            print(mctsChosenColumn)
-            column = valid_column_value(board, player)
-            save_game_to_csv(board, player, column)  # Salvando o estado após jogada humana
+            print(str)
+            playerChosenColumn = valid_column_value(board, turn, player, str)
+            # save_game_to_csv(board, player, column)  # Salvando o estado após jogada humana
+            if (root == None):
+                root = Node(board, player, playerChosenColumn, None, turn)
+            else:
+                root = root.child_with_move(mctsChosenColumn).child_with_move(playerChosenColumn)
+                #root.parent = None
+            make_move(board, playerChosenColumn, player)
+
         else:
             print("MCTS thinking...")
             start_time = time.time()
-            column = mcts_move(board, player)
-            save_game_to_csv(board, player, column)  # Salvando o estado após jogada do computador
+            mctsChosenColumn = mcts_move(root)
+            # save_game_to_csv(board, player, column)  # Salvando o estado após jogada do computador
             elapsed_time = time.time() - start_time
-            mctsChosenColumn = f"Player {player_color(player)} chose column {column + 1} in {elapsed_time:.3f}s"
-
-        make_move(board, column, player)
+            str = f"Player {player_color(player)} chose column {mctsChosenColumn + 1} in {elapsed_time:.3f}s"
+            make_move(board, mctsChosenColumn, player)
 
         player_won, winning_line = check_win(board, player)
 
         if player_won:
-            print_board(board, winning_line)
-            print(f"Player {player_color(player)} chose column {column + 1}")
+            print_board(board, turn, winning_line)
+            if (turn % 2 == 0):
+                print(f"Player {player_color(player)} chose column {mctsChosenColumn + 1}")
+            else:
+                print(f"Player {player_color(player)} chose column {playerChosenColumn + 1}")
             print(f"Player {player_color(player)} won!")
+            # root.print_all_previous_turns()
             break
 
-        if check_draw(board):
-            print_board(board)
+        if check_draw(turn):
+            print_board(board, turn)
             print("Draw!")
             break
 
         player = oppositePlayer(player)
+        turn += 1
 
 def computer_vs_computer():
     board = create_board()
     player = "X"
-    round_counter = 1
+    turn = 1
 
     while True:
-        print_board(board)
-        print(f"Rodada {round_counter}: Jogador {player_color(player)} está pensando...")
+        print_board(board, turn)
+        print(f"Turn {turn}: Player {player_color(player)} is thinking...")
 
         column = mcts_move(board, player)
         save_game_to_csv(board, player, column)  # Salvando o estado após jogada da IA
         make_move(board, column, player)
 
-        print(f"Jogador {player_color(player)} escolheu a coluna {column + 1}")
+        print(f"Player {player_color(player)} chose column {column + 1}")
 
         player_won, winning_line = check_win(board, player)
 
         if player_won:
-            print_board(board, winning_line)
+            print_board(board, turn, winning_line)
             print(f"Player {player_color(player)} won!")
             break
 
-        if check_draw(board):
-            print_board(board)
-            print("Empate!")
+        if check_draw(turn):
+            print_board(board, turn)
+            print("Draw!")
             break
 
         player = oppositePlayer(player)
-        round_counter += 1
+        turn += 1
 
 def create_board():
     return [[None for _ in range(7)] for _ in range(6)]
 
-def print_board(board, winning_positions=None):
+def print_board(board, turn, winning_positions = None):
     clear_terminal()
 
+    print(f"      Turn {turn}")
     print("1  2  3  4  5  6  7")
 
     for row in range(6):
@@ -193,7 +214,7 @@ def print_board(board, winning_positions=None):
     print()
 
 def oppositePlayer(player):
-    if player == "X":
+    if player == 'X':
         return 'O'
     return 'X'
 
@@ -239,16 +260,11 @@ def check_win(board, player):
 
     return False, []
 
-def check_draw(board):
-    """Verifica se o jogo terminou em empate."""
-    for row in board:
-        for cell in row:
-            if cell is None:
-                return False  # Ainda há espaços vazios
-    return True  # Grade cheia
+def check_draw(turn):
+    return turn == 42
 
 class Node:
-    def __init__(self, board, player, move=None, parent=None):
+    def __init__(self, board, player, move, parent, turn):
         self.board = board
         self.player = player
         self.move = move
@@ -256,6 +272,22 @@ class Node:
         self.children = []
         self.visits = 0
         self.wins = 0
+        self.turn = turn
+
+    def print_all_previous_turns(self):
+        lines = []
+        node = self
+        while node is not None:
+            line = f"Turn {node.turn}: ({node.player}, {node.move + 1})"
+            lines.append(line)
+            node = node.parent
+        for line in reversed(lines):
+            print(line)
+
+    def child_with_move(self, move):
+        for child in self.children:
+            if child.move == move:
+                return child
 
     def uct(self):
         if self.visits == 0:
@@ -278,15 +310,17 @@ def expand_node(node):
     valid_moves = [col for col in range(7) if is_valid_move(node.board, col)]
     for move in valid_moves:
         new_board = [row[:] for row in node.board]
-        make_move(new_board, move, node.player)
         new_player = oppositePlayer(node.player)
-        child_node = Node(new_board, new_player, move, node)
+        make_move(new_board, move, new_player)
+        child_node = Node(new_board, new_player, move, node, node.turn + 1)
         node.children.append(child_node)
 
 def simulate(node):
     board = [row[:] for row in node.board]
-    player = node.player
-
+    player = oppositePlayer(node.player)
+    #print(f"\n\nInitiating Simulation. Last Player: {node.player} Column: {node.move} Turn: {node.turn}")
+    #node.print_all_previous_turns()
+    #print_board(board)
     while True:
         valid_moves = [col for col in range(7) if is_valid_move(board, col)]
         if not valid_moves:
@@ -294,6 +328,9 @@ def simulate(node):
 
         move = random.choice(valid_moves)
         make_move(board, move, player)
+        #player_won, winning_line = check_win(board, player)
+        #print("\nSimulating ...")
+        #print_board(board, winning_line)
 
         if check_win(board, player)[0]:
             return player  # Vitória do jogador atual
@@ -302,13 +339,17 @@ def simulate(node):
 
 def backpropagate(node, result):
     while node is not None:
-        won = 0 if node.player == result else 1
+        won = 1 if node.player == result else 0
         node.visits += 1
         node.wins += won
         node = node.parent
 
-def mcts_move(board, player):
-    root = Node(board, player)
+def mcts_move(rootNode):
+    root = rootNode
+    # print(f"\n\nROOT: \nWins: {root.wins}\nVisits: {root.visits}\nTurn: {root.turn}\nPlayer: {root.player}\nMove: {root.move + 1}\nNumber Children: {len(root.children)}")
+    # print("----------- ROOT BOARD -----------")
+    # print_board(root.board)
+    # print("----------------------------------")
 
     for _ in range(iterations):
         node = root
@@ -317,7 +358,7 @@ def mcts_move(board, player):
             node = select_node(node)
 
         # Expansão
-        if not check_win(node.board, oppositePlayer(player))[0] and not check_draw(node.board):
+        if not check_win(node.board, oppositePlayer(node.player))[0] and not check_draw(node.turn):
             expand_node(node)
             if node.children:
                 node = random.choice(node.children)
@@ -333,8 +374,14 @@ def mcts_move(board, player):
     best_visits = -1
 
     for child in root.children:
+        # print(f"Child {child.move + 1}: {child.wins} / {child.visits} = {(child.wins / (child.visits + 1)) * 100:.3f}% || uct = {child.uct():.4f}")
         if child.visits > best_visits:
             best_visits = child.visits
             best_move = child.move
+
+    # print(f"\n\nROOT: \nWins: {root.wins}\nVisits: {root.visits}\nTurn: {root.turn}\nPlayer: {root.player}\nMove: {root.move + 1}\nNumber Children: {len(root.children)}")
+    # print("----------- ROOT BOARD -----------")
+    # print_board(root.board)
+    # print("----------------------------------")
 
     return best_move
