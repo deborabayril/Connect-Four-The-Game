@@ -49,15 +49,40 @@ def start_game(game_mode):
     else:
         computer_vs_computer()
 
+def create_board():
+    return [[None for _ in range(7)] for _ in range(6)]
+
+def print_board(board, turn, winning_positions = None):
+    clear_terminal()
+
+    print(f"      Turn {turn}")
+    print("1  2  3  4  5  6  7")
+
+    for row in range(6):
+        for col in range(7):
+            elem = board[row][col]
+
+            if elem is None:
+                print(".", end="  ")
+            elif winning_positions is not None and (row, col) in winning_positions:
+                print(player_color(elem, True), end="  ")
+            else:
+                print(player_color(elem), end="  ")
+        print()
+    print()
+
 def is_valid_input(input):
     return input in ["1", "2", "3", "4", "5", "6", "7"]
+
+def is_valid_move(board, column):
+    return 0 <= column <= 6 and board[0][column] is None
 
 def valid_column_value(board, turn, player, last_mcts_move = None):
     column = input(f"Player {player_color(player)}, choose a column (1-7): ")
 
     while not is_valid_input(column):
         print_board(board, turn)
-        if (last_mcsts_move):
+        if (last_mcts_move):
             print(last_mcts_move)
         print("Invalid move. Try again.")
         column = input(f"Player {player_color(player)}, choose a column: ")
@@ -66,6 +91,19 @@ def valid_column_value(board, turn, player, last_mcts_move = None):
                 break
 
     return int(column) - 1
+
+def oppositePlayer(player):
+    if player == 'X':
+        return 'O'
+    return 'X'
+
+def make_move(board, column, player):
+    # verificar baixo para cima a primeira posição na coluna column que está disponível
+    for row in range(5, -1, -1):
+        if board[row][column] is None:
+            board[row][column] = player
+            return True
+    return False
 
 def save_game_to_csv(board, player, column, file_name = "jogos_connect_four.csv"):
     # Registra o estado do jogo antes da jogada
@@ -79,6 +117,45 @@ def save_game_to_csv(board, player, column, file_name = "jogos_connect_four.csv"
         writer = csv.writer(file)
         writer.writerow(data)
         # print(f"Salvando dados: {data}")
+
+def check_win(board, player):
+    """Verifica se o jogador venceu."""
+    # Verificar linhas
+    for row in range(6):
+        for col in range(4):
+            if board[row][col] == board[row][col + 1] == board[row][col + 2] == board[row][col + 3] == player:
+                return True, [(row, col), (row, col + 1), (row, col + 2), (row, col + 3)]
+
+    # Verificar colunas
+    for col in range(7):
+        for row in range(3):
+            if board[row][col] == board[row + 1][col] == board[row + 2][col] == board[row + 3][col] == player:
+                return True, [(row, col), (row + 1, col), (row + 2, col), (row + 3, col)]
+
+    # Verificar diagonais (da esquerda para a direita)
+    for row in range(3):
+        for col in range(4):
+            if board[row][col] == board[row + 1][col + 1] == board[row + 2][col + 2] == board[row + 3][
+                col + 3] == player:
+                return True, [(row, col), (row + 1, col + 1), (row + 2, col + 2), (row + 3, col + 3)]
+
+    # Verificar diagonais (da direita para a esquerda)
+    for row in range(3):
+        for col in range(3, 7):
+            if board[row][col] == board[row + 1][col - 1] == board[row + 2][col - 2] == board[row + 3][
+                col - 3] == player:
+                return True, [(row, col), (row + 1, col - 1), (row + 2, col - 2), (row + 3, col - 3)]
+
+    return False, []
+
+def check_draw(turn):
+    return turn == 42
+
+def review_game_history(end_game_node):
+    print("\nWould you like to review the game history (y/n)?", end = " ")
+    response = input()
+    if response == "y":
+        end_game_node.print_all_previous_turns()
 
 def human_vs_human():
     board = create_board()
@@ -207,84 +284,6 @@ def mcts_vs_mcts():
 
     review_game_history(mcts_X.root)
 
-def create_board():
-    return [[None for _ in range(7)] for _ in range(6)]
-
-def print_board(board, turn, winning_positions = None):
-    clear_terminal()
-
-    print(f"      Turn {turn}")
-    print("1  2  3  4  5  6  7")
-
-    for row in range(6):
-        for col in range(7):
-            elem = board[row][col]
-
-            if elem is None:
-                print(".", end="  ")
-            elif winning_positions is not None and (row, col) in winning_positions:
-                print(player_color(elem, True), end="  ")
-            else:
-                print(player_color(elem), end="  ")
-        print()
-    print()
-
-def oppositePlayer(player):
-    if player == 'X':
-        return 'O'
-    return 'X'
-
-def is_valid_move(board, column):
-    # somente temos  que verificar se a linha do topo ainda está vazia (None)
-    return 0 <= column <= 6 and board[0][column] is None
-
-def make_move(board, column, player):
-    # verificar baixo para cima a primeira posição na coluna column que está disponível
-    for row in range(5, -1, -1):
-        if board[row][column] is None:
-            board[row][column] = player
-            return True
-    return False
-
-def check_win(board, player):
-    """Verifica se o jogador venceu."""
-    # Verificar linhas
-    for row in range(6):
-        for col in range(4):
-            if board[row][col] == board[row][col + 1] == board[row][col + 2] == board[row][col + 3] == player:
-                return True, [(row, col), (row, col + 1), (row, col + 2), (row, col + 3)]
-
-    # Verificar colunas
-    for col in range(7):
-        for row in range(3):
-            if board[row][col] == board[row + 1][col] == board[row + 2][col] == board[row + 3][col] == player:
-                return True, [(row, col), (row + 1, col), (row + 2, col), (row + 3, col)]
-
-    # Verificar diagonais (da esquerda para a direita)
-    for row in range(3):
-        for col in range(4):
-            if board[row][col] == board[row + 1][col + 1] == board[row + 2][col + 2] == board[row + 3][
-                col + 3] == player:
-                return True, [(row, col), (row + 1, col + 1), (row + 2, col + 2), (row + 3, col + 3)]
-
-    # Verificar diagonais (da direita para a esquerda)
-    for row in range(3):
-        for col in range(3, 7):
-            if board[row][col] == board[row + 1][col - 1] == board[row + 2][col - 2] == board[row + 3][
-                col - 3] == player:
-                return True, [(row, col), (row + 1, col - 1), (row + 2, col - 2), (row + 3, col - 3)]
-
-    return False, []
-
-def check_draw(turn):
-    return turn == 42
-
-def review_game_history(end_game_node):
-    print("\nWould you like to review the game history (y/n)?", end = " ")
-    response = input()
-    if response == "y":
-        end_game_node.print_all_previous_turns()
-
 class Node:
     def __init__(self, player, move, turn, board, parent):
         self.wins = 0
@@ -296,6 +295,16 @@ class Node:
         self.parent = parent
         self.children = []
 
+    def uct(self):
+        if self.visits == 0:
+            return float('inf')
+        return (self.wins / self.visits) + math.sqrt(2) * math.sqrt(math.log(self.parent.visits) / self.visits)
+
+    def child_with_move(self, move):
+        for child in self.children:
+            if child.move == move:
+                return child
+
     def print_all_previous_turns(self):
         lines = []
         node = self
@@ -305,16 +314,6 @@ class Node:
             node = node.parent
         for line in reversed(lines):
             print(line)
-
-    def child_with_move(self, move):
-        for child in self.children:
-            if child.move == move:
-                return child
-
-    def uct(self):
-        if self.visits == 0:
-            return float('inf')
-        return (self.wins / self.visits) + math.sqrt(2) * math.sqrt(math.log(self.parent.visits) / self.visits)
 
 class MCTS:
     def __init__(self, root):
