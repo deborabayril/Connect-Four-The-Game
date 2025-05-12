@@ -8,7 +8,7 @@ def main():
         print_menu(True)
         game_mode = input()
 
-    start_game(int(game_mode))
+    start_game(game_mode)
 
 if __name__ == "__main__":
     main()

@@ -5,7 +5,7 @@ import csv
 import os
 
 
-class color:
+class Color:
     RED = '\033[91m'
     YELLOW = '\033[93m'
     GREEN = '\033[92m'
@@ -15,11 +15,11 @@ class color:
 
 def player_color(player, won = None):
     if (won):
-        return color.GREEN + color.BOLD + player + color.RESET
+        return Color.GREEN + Color.BOLD + player + Color.RESET
     elif (player == "X"):
-        return color.YELLOW + color.BOLD + player + color.RESET
+        return Color.YELLOW + Color.BOLD + player + Color.RESET
     else:
-        return color.RED + color.BOLD + player + color.RESET
+        return Color.RED + Color.BOLD + player + Color.RESET
 
 def clear_terminal():
     os.system('cls' if os.name == 'nt' else 'clear')
@@ -42,9 +42,9 @@ def valid_game_mode(game_mode):
     return game_mode in ["1", "2", "3"]
 
 def start_game(game_mode):
-    if (game_mode == 1):
+    if (game_mode == "1"):
         human_vs_human()
-    elif (game_mode == 2):
+    elif (game_mode == "2"):
         human_vs_computer()
     else:
         computer_vs_computer()
@@ -161,12 +161,14 @@ def human_vs_human():
     board = create_board()
     player = 'X'
     turn = 1
+    game_history = ""
 
     while True:
         print_board(board, turn)
         column = valid_column_value(board, turn, player)
         make_move(board, column, player)
         player_won, winning_line = check_win(board, player)
+        game_history += f"Turn {turn}: ({player}, {column + 1})\n"
 
         if player_won:
             print_board(board, turn, winning_line)
@@ -181,6 +183,11 @@ def human_vs_human():
 
         player = oppositePlayer(player)
         turn += 1
+
+    print("\nWould you like to review the game history (y/n)?", end = " ")
+    response = input()
+    if response == "y":
+        print(game_history, end = "")
 
 def human_vs_computer():
     board = create_board()
