@@ -247,13 +247,14 @@ def mcts_vs_mcts():
     board = create_board()
     player = 'X'
     turn = 1
+    last_move = ""
 
-    root_node = Node('-', -1, 0, board, None)
-    mcts_X = MCTS(root_node)
-    mcts_O = MCTS(root_node)  # Share the same starting root
+    mcts_X = MCTS(Node('-', -1, 0, [row[:] for row in board], None))
+    mcts_O = MCTS(Node('-', -1, 0, [row[:] for row in board], None))
 
     while True:
         print_board(board, turn)
+        print(last_move)
         print(f"Turn {turn}: Player {player_color(player)} is thinking...")
 
         if player == 'X':
@@ -268,11 +269,11 @@ def mcts_vs_mcts():
             mcts_X.update_root(column)
             mcts_O.update_root(column)
 
-        if (turn == 1):
-            mcts_O.root.parent = None
+        if turn == 1:
             mcts_X.root.parent = None
+            mcts_O.root = Node(mcts_X.root.player, mcts_X.root.move, mcts_X.root.turn, [row[:] for row in mcts_X.root.board], None)
 
-        print(f"Player {player_color(player)} chose column {column + 1}")
+        last_move = f"Player {player_color(player)} chose column {column + 1}"
 
         player_won, winning_line = check_win(board, player)
 
@@ -350,7 +351,7 @@ class MCTS:
 
     def simulate(self, node):
         board = [row[:] for row in node.board]
-        player = oppositePlayer(node.player)
+        current_player = oppositePlayer(node.player)
         #print(f"\n\nInitiating Simulation. Last Player: {node.player} Column: {node.move} Turn: {node.turn}")
         #node.print_all_previous_turns()
         #print_board(board, node.turn)
@@ -360,15 +361,15 @@ class MCTS:
                 return ''
 
             move = random.choice(valid_moves)
-            make_move(board, move, player)
+            make_move(board, move, current_player)
             #player_won, winning_line = check_win(board, player)
             #print("\nSimulating ...")
             #print_board(board, 0, winning_line)
 
-            if check_win(board, player)[0]:
-                return player  # Vitória do jogador atual
+            if check_win(board, current_player)[0]:
+                return current_player  # Vitória do jogador atual
 
-            player = oppositePlayer(player)
+            current_player = oppositePlayer(current_player)
 
     def backpropagate(self, node, result):
         while node is not None:
