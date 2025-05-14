@@ -196,7 +196,6 @@ def human_vs_mcts():
             else:
                 mcts.update_root(column)
             # print(f"\n\nMCTS {mctsChosenColumn + 1} -> Child {column + 1}: {mcts.root.wins} / {mcts.root.visits} = {(mcts.root.wins / (mcts.root.visits)) * 100:.3f}% || uct = {mcts.root.uct():.4f}\n\n")
-            # save_game_to_csv(board, current_player, column)
 
         else:
             print("MCTS thinking...")
@@ -206,8 +205,8 @@ def human_vs_mcts():
             last_mcts_move = f"Player {player_color(current_player)} chose column {column + 1} in {elapsed_time:.3f}s"
             make_move(board, column, current_player)
             mcts.update_root(column)
-            # save_game_to_csv(board, current_player, column)
 
+        save_game_to_csv(board, current_player, column)
         player_won, winning_line = check_win(board, current_player)
 
         if player_won:
@@ -270,7 +269,7 @@ def mcts_vs_mcts():
                                [row[:] for row in mcts_X.root.board], None)
 
         last_move = f"Player {player_color(current_player)} chose column {column + 1}"
-
+        save_game_to_csv(board, current_player, column)
         player_won, winning_line = check_win(board, current_player)
 
         if player_won:
