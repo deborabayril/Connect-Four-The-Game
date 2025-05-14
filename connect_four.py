@@ -6,12 +6,12 @@ import os
 
 
 class Color:
-    RED = '\033[91m'
-    YELLOW = '\033[93m'
-    GREEN = '\033[92m'
-    BLUE = '\033[94m'
-    BOLD = '\033[1m'
-    RESET = '\033[0m'
+    RED = "\033[91m"
+    YELLOW = "\033[93m"
+    GREEN = "\033[92m"
+    BLUE = "\033[94m"
+    BOLD = "\033[1m"
+    RESET = "\033[0m"
 
 def player_color(player, won = None):
     if (won):
@@ -52,10 +52,10 @@ def start_game(game_mode):
 def print_algorithm_menu(invalid_input):
     clear_terminal()
 
-    print("============================")
+    print("==============================")
     print("1. Play against Monte-Carlo")
     print("2. Play against Decision Tree")
-    print("============================\n")
+    print("==============================\n")
 
     if (invalid_input):
         print("Invalid input. Please select again.")
@@ -63,38 +63,6 @@ def print_algorithm_menu(invalid_input):
 
 def valid_algorithm(input):
     return input in ["1", "2"]
-
-def print_algorithm_difficuly_menu(invalid_input):
-    clear_terminal()
-
-    print("============================")
-    print("1. Easy")
-    print("2. Medimum")
-    print("3. Hard")
-    print("============================\n")
-
-    if (invalid_input):
-        print("Invalid input. Please select again.")
-    print("Choose difficulty:", end = " ")
-
-def valid_difficulty(input):
-    return input in ["1", "2", "3"]
-
-def mcts_iterations_based_on_difficulty(mcts_difficulty):
-    if (mcts_difficulty == "1"):
-        return 100
-    elif (mcts_difficulty == "2"):
-        return 1000
-    else:
-        return 10000
-
-def decision_tree_based_on_difficulty(decision_tree_difficulty):
-    if (decision_tree_difficulty == "1"):
-        return 0
-    elif (decision_tree_difficulty == "2"):
-        return 0
-    else:
-        return 0
 
 def create_board():
     return [[None for _ in range(7)] for _ in range(6)]
@@ -135,13 +103,14 @@ def valid_column_value(board, turn, player, last_mcts_move = None):
                 return column
 
         print_board(board, turn)
-        print(last_mcts_move)
+        if (last_mcts_move is not None):
+            print(last_mcts_move)
         print("Invalid move. Try again.")
 
 def oppositePlayer(player):
-    if player == 'X':
-        return 'O'
-    return 'X'
+    if player == "X":
+        return "O"
+    return "X"
 
 def make_move(board, column, player):
     # verificar baixo para cima a primeira posição na coluna column que está disponível
@@ -159,7 +128,7 @@ def save_game_to_csv(board, player, column, file_name = "jogos_connect_four.csv"
     data = [state, player, column + 1]  # O +1 é para converter a coluna para a contagem humana (1-7)
 
     # Salva no arquivo CSV
-    with open(file_name, mode='a', newline='') as file:
+    with open(file_name, mode = "a", newline = "") as file:
         writer = csv.writer(file)
         writer.writerow(data)
         # print(f"Salvando dados: {data}")
@@ -201,51 +170,50 @@ def review_game_history(end_game_node):
     # this method only exists to also confirm that the monte-carlo tree was
     # correctly created during the game
     print("\nWould you like to review the game history (y/n)?", end = " ")
-    response = input()
-    if response == "y":
+    answer = input()
+    if answer == "y":
         end_game_node.print_all_previous_turns()
 
-def human_vs_mcts(mcts_difficulty):
+def human_vs_mcts():
     board = create_board()
-    player = 'X'
+    current_player = "X"
     turn = 1
     column = 0
     last_mcts_move = ""
 
     mcts = None
-    iterations = mcts_iterations_based_on_difficulty(mcts_difficulty)
 
     while True:
         print_board(board, turn)
 
-        if player == 'X':
+        if current_player == "X":
             print(last_mcts_move)
-            column = valid_column_value(board, turn, player, last_mcts_move)
-            make_move(board, column, player)
+            column = valid_column_value(board, turn, current_player, last_mcts_move)
+            make_move(board, column, current_player)
             if (mcts == None):
-                mcts = MCTS(Node(player, column, turn, board, None), iterations)
+                mcts = MCTS(Node(current_player, column, turn, board, None))
                 print(Color.BLUE + f"\nMCTS Iterations: {mcts.iterations}\n" + Color.RESET)
             else:
                 mcts.update_root(column)
             # print(f"\n\nMCTS {mctsChosenColumn + 1} -> Child {column + 1}: {mcts.root.wins} / {mcts.root.visits} = {(mcts.root.wins / (mcts.root.visits)) * 100:.3f}% || uct = {mcts.root.uct():.4f}\n\n")
-            # save_game_to_csv(board, player, column)
+            # save_game_to_csv(board, current_player, column)
 
         else:
             print("MCTS thinking...")
             start_time = time.time()
             column = mcts.mcts_move()
             elapsed_time = time.time() - start_time
-            last_mcts_move = f"Player {player_color(player)} chose column {column + 1} in {elapsed_time:.3f}s"
-            make_move(board, column, player)
+            last_mcts_move = f"Player {player_color(current_player)} chose column {column + 1} in {elapsed_time:.3f}s"
+            make_move(board, column, current_player)
             mcts.update_root(column)
-            # save_game_to_csv(board, player, column)
+            # save_game_to_csv(board, current_player, column)
 
-        player_won, winning_line = check_win(board, player)
+        player_won, winning_line = check_win(board, current_player)
 
         if player_won:
             print_board(board, turn, winning_line)
             print(last_mcts_move)
-            print(f"Player {player_color(player)} won!")
+            print(f"Player {player_color(current_player)} won!")
             break
 
         if check_draw(turn):
@@ -253,47 +221,46 @@ def human_vs_mcts(mcts_difficulty):
             print("Draw!")
             break
 
-        player = oppositePlayer(player)
+        current_player = oppositePlayer(current_player)
         turn += 1
 
     review_game_history(mcts.root)
 
-def human_vs_decision_tree(decison_tree_difficulty):
+def human_vs_decision_tree():
     board = create_board()
-    player = 'X'
+    current_player = "X"
     turn = 1
     column = 0
     last_mcts_move = ""
 
     decision_tree = None
-    difficulty = decision_tree_based_on_difficulty(decison_tree_difficulty)
 
     clear_terminal()
     print("\nDecision Tree is under development!\n")
 
 def mcts_vs_mcts():
     board = create_board()
-    player = 'X'
+    current_player = "X"
     turn = 1
     last_move = ""
 
-    mcts_X = MCTS(Node('-', -1, 0, [row[:] for row in board], None))
-    mcts_O = MCTS(Node('-', -1, 0, [row[:] for row in board], None))
+    mcts_X = MCTS(Node("-", -1, 0, [row[:] for row in board], None))
+    mcts_O = MCTS(Node("-", -1, 0, [row[:] for row in board], None))
 
     while True:
         print_board(board, turn)
         print(last_move)
-        print(f"Turn {turn}: Player {player_color(player)} is thinking...")
+        print(f"Turn {turn}: Player {player_color(current_player)} is thinking...")
 
-        if player == 'X':
+        if current_player == "X":
             column = mcts_X.mcts_move()
-            make_move(board, column, player)
+            make_move(board, column, current_player)
             mcts_X.update_root(column)
             mcts_O.update_root(column)
 
         else:
             column = mcts_O.mcts_move()
-            make_move(board, column, player)
+            make_move(board, column, current_player)
             mcts_X.update_root(column)
             mcts_O.update_root(column)
 
@@ -302,13 +269,13 @@ def mcts_vs_mcts():
             mcts_O.root = Node(mcts_X.root.player, mcts_X.root.move, mcts_X.root.turn,
                                [row[:] for row in mcts_X.root.board], None)
 
-        last_move = f"Player {player_color(player)} chose column {column + 1}"
+        last_move = f"Player {player_color(current_player)} chose column {column + 1}"
 
-        player_won, winning_line = check_win(board, player)
+        player_won, winning_line = check_win(board, current_player)
 
         if player_won:
             print_board(board, turn, winning_line)
-            print(f"Player {player_color(player)} won!")
+            print(f"Player {player_color(current_player)} won!")
             break
 
         if check_draw(turn):
@@ -316,28 +283,28 @@ def mcts_vs_mcts():
             print("Draw!")
             break
 
-        player = oppositePlayer(player)
+        current_player = oppositePlayer(current_player)
         turn += 1
 
     review_game_history(mcts_X.root)
 
 def human_vs_human():
     board = create_board()
-    player = 'X'
+    current_player = "X"
     turn = 1
     game_history = ""
 
     while True:
         print_board(board, turn)
-        column = valid_column_value(board, turn, player)
-        make_move(board, column, player)
-        player_won, winning_line = check_win(board, player)
-        game_history += f"Turn {turn}: ({player}, {column + 1})\n"
+        column = valid_column_value(board, turn, current_player)
+        make_move(board, column, current_player)
+        player_won, winning_line = check_win(board, current_player)
+        game_history += f"Turn {turn}: ({current_player}, {column + 1})\n"
 
         if player_won:
             print_board(board, turn, winning_line)
-            print(f"Player {player_color(player)} chose column {column + 1}")
-            print(f"Player {player_color(player)} won!")
+            print(f"Player {player_color(current_player)} chose column {column + 1}")
+            print(f"Player {player_color(current_player)} won!")
             break
 
         if check_draw(turn):
@@ -345,12 +312,12 @@ def human_vs_human():
             print("Draw!")
             break
 
-        player = oppositePlayer(player)
+        current_player = oppositePlayer(current_player)
         turn += 1
 
     print("\nWould you like to review the game history (y/n)?", end = " ")
-    response = input()
-    if response == "y":
+    answer = input()
+    if answer == "y":
         print(game_history, end = "")
 
 def human_vs_computer():
@@ -362,17 +329,10 @@ def human_vs_computer():
         print_algorithm_menu(True)
         algorithm_choice = input()
 
-    print_algorithm_difficuly_menu(False)
-    difficulty_choice = input()
-
-    while not valid_difficulty(difficulty_choice):
-        print_algorithm_difficuly_menu(True)
-        difficulty_choice = input()
-
-    if (algorithm_choice == '1'):
-        human_vs_mcts(difficulty_choice);
+    if (algorithm_choice == "1"):
+        human_vs_mcts();
     else:
-        human_vs_decision_tree(difficulty_choice);
+        human_vs_decision_tree();
 
 def computer_vs_computer():
     mcts_vs_mcts()
@@ -390,7 +350,7 @@ class Node:
 
     def uct(self):
         if self.visits == 0:
-            return float('inf')
+            return float("inf")
         return (self.wins / self.visits) + math.sqrt(2) * math.sqrt(math.log(self.parent.visits) / self.visits)
 
     def child_with_move(self, move):
@@ -409,16 +369,13 @@ class Node:
             print(line)
 
 class MCTS:
-    def __init__(self, root, iterations = 10000):
-        # if iterations is passed as an argument during the constructor, then
-        # self.iterations = iterations, else it will be st to 10000 as default
-        # this is required so that we are able to change mcts diffculty
+    def __init__(self, root):
         self.root = root
-        self.iterations = iterations
+        self.iterations = 1000
 
     def select_node(self, node):
         best_child = None
-        best_uct = -float('inf')
+        best_uct = -float("inf")
 
         for child in node.children:
             uct_value = child.uct()
@@ -446,11 +403,11 @@ class MCTS:
         while True:
             valid_moves = [col for col in range(7) if is_valid_move(board, col)]
             if not valid_moves:
-                return ''
+                return None
 
             move = random.choice(valid_moves)
             make_move(board, move, current_player)
-            #player_won, winning_line = check_win(board, player)
+            #player_won, winning_line = check_win(board, current_player)
             #print("\nSimulating ...")
             #print_board(board, 0, winning_line)
 
@@ -499,4 +456,3 @@ class MCTS:
 
     def update_root(self, chosen_column):
         self.root = self.root.child_with_move(chosen_column)
-        # self.root.parent = None
