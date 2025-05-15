@@ -86,24 +86,33 @@ def id3(dados, atributos):
     if not atributos:
         return max(set(classes), key=classes.count)
     
-    # Calcular o atributo com maior ganho de informação
-    melhor_atributo, maior_informacao_ganha = None, -1
-    for i, atributo in enumerate(atributos):
-        informacao_ganha = calcular_informacao_ganha(dados, i)
+     # Calcular o atributo com maior ganho de informação
+    melhor_atributo = None
+    maior_informacao_ganha = -1
+    todos_atributos = ['sepal_length', 'sepal_width', 'petal_length', 'petal_width']
+
+    for atributo in atributos:
+        atributo_index = todos_atributos.index(atributo)
+        informacao_ganha = calcular_informacao_ganha(dados, atributo_index)
         if informacao_ganha > maior_informacao_ganha:
-            maior_informacao_ganha, melhor_atributo = informacao_ganha, i
+            maior_informacao_ganha = informacao_ganha
+            melhor_atributo = atributo
+
+    melhor_atributo_index = todos_atributos.index(melhor_atributo)
     
-    # Construir o nó da árvore de decisão com o melhor atributo
-    arvore = {atributos[melhor_atributo]: {}}
-    valores_unicos = set(linha[melhor_atributo] for linha in dados)
+   # Construir o nó da árvore de decisão com o melhor atributo
+    arvore = {melhor_atributo: {}}
+    valores_unicos = set(linha[melhor_atributo_index] for linha in dados)
     
-    # Dividir os dados com base nos valores do melhor atributo
+        # Dividir os dados com base nos valores do melhor atributo
     for valor in valores_unicos:
-        dados_filtrados = [linha for linha in dados if linha[melhor_atributo] == valor]
-        sub_arvore = id3(dados_filtrados, [a for i, a in enumerate(atributos) if i != melhor_atributo])
-        arvore[atributos[melhor_atributo]][valor] = sub_arvore
+        dados_filtrados = [linha for linha in dados if linha[melhor_atributo_index] == valor]
+        sub_arvore = id3(dados_filtrados, [a for a in atributos if a != melhor_atributo])
+        arvore[melhor_atributo][valor] = sub_arvore
     
     return arvore
+
+# Função para classificar um exemplo com a árvore de decisão
 
 def classificar(exemplo, arvore, atributos):
     if isinstance(arvore, dict):
@@ -112,7 +121,7 @@ def classificar(exemplo, arvore, atributos):
         valor = exemplo[atributo_index]
 
         if valor not in arvore[atributo]:
-            return "Desconhecido"  # ou retorna a classe mais comum, se preferires
+            return "Desconhecido"  # ou retorna max(set(classes), key=classes.count) 
 
         return classificar(exemplo, arvore[atributo][valor], atributos)
     else:
