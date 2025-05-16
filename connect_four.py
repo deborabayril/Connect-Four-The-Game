@@ -120,19 +120,93 @@ def make_move(board, column, player):
             return True
     return False
 
-def save_game_to_csv(board, player, column, file_name = "dataset.csv"):
-
+def save_game_to_csv(board, player, column, file_name):
     current_board_state = [col for row in board for col in row]
     converted_board_state = [0 if col == None else 1 if col == "X" else 2 for col in current_board_state]
     data = converted_board_state + [1 if player == "X" else 2, column]
 
-    # current_board_state_v2 = ["-" if col == None else col for row in board for col in row]
-    # data = current_board_state_v2 + [player, column]
-
     with open(file_name, mode = "a", newline = "") as file:
         writer = csv.writer(file)
         writer.writerow(data)
-        # print(f"Salvando dados: {data}")
+
+def random_MCTS_generator(limit_of_iterations, limit_of_uct_constant):
+    board = create_board()
+    root_node = MCTS_Node("-", -1, 0, [row[:] for row in board], None)
+    iterations = random.randint(1, limit_of_iterations/100) * 100
+    uct_constant = random.uniform(0.8, limit_of_uct_constant)
+    return MCTS(root_node, iterations, uct_constant)
+
+def generate_dataset(number_of_different_mcts, number_of_games_per_mcts, limit_of_iterations, limit_of_uct_constant, output_fataset_file):
+
+    print(f"\nThe generated dataset will be a set of games of a static MCTS (that will always play first as {player_color('X')}) against random generated MCTSs which will vary in the number of iterations and uct_constant value.")
+    print(f"\nOur static MCTS will play with the following characteristics:\n- Iterations: 1000\n- uct_constant: √2 = {math.sqrt(2):.5f}")
+    print(f"\nGenerating dataset with {number_of_games_per_mcts} games for each of the {number_of_different_mcts} different MCTSs")
+
+    start_dataset_generation_timer = time.time()
+
+    for i in range(1, number_of_different_mcts + 1): # for each different mcts
+        for j in range(1, number_of_games_per_mcts + 1): # make each play number_of_games_per_mcts against each other
+            board = create_board()
+            mcts_X = MCTS(MCTS_Node("-", -1, 0, [row[:] for row in board], None))
+            mcts_O = random_MCTS_generator(limit_of_iterations, limit_of_uct_constant)
+            current_player = "X"
+            turn = 1
+
+            if (j == 1):
+                print(Color.BOLD + "\n------------- " + Color.RED + f"Opponent {i}" + Color.RESET + " -------------" + Color.RESET)
+                print(f"Opponent characteristics:\n- Iterations: {mcts_O.iterations}\n- uct_constant: {mcts_O.uct_constant:.5f}\n" + Color.RESET)
+                print(Color.BOLD + f"Starting game {j}" + Color.RESET)
+            else:
+                print(Color.BOLD + f"\nStarting game {j}" + Color.RESET)
+
+            start_time = time.time()
+
+            while True:
+                if current_player == "X":
+                    column = mcts_X.mcts_move()
+                    make_move(board, column, current_player)
+                    mcts_X.update_root(column)
+                    mcts_O.update_root(column)
+
+                else:
+                    column = mcts_O.mcts_move()
+                    make_move(board, column, current_player)
+                    mcts_X.update_root(column)
+                    mcts_O.update_root(column)
+
+                if turn == 1:
+                    mcts_X.root.parent = None
+                    mcts_O.root = MCTS_Node(mcts_X.root.player, mcts_X.root.move, mcts_X.root.turn,
+                                       [row[:] for row in mcts_X.root.board], None)
+
+                save_game_to_csv(board, current_player, column, output_fataset_file)
+                player_won, winning_line = check_win(board, current_player)
+
+                if player_won:
+                    elapsed_time = time.time() - start_time
+                    print(f"Player {player_color(current_player)} won!")
+                    print(f"This whole game took {elapsed_time:.3f} seconds.")
+                    break
+
+                if check_draw(turn):
+                    elapsed_time = time.time() - start_time
+                    print("Draw!")
+                    print(f"This whole game took {elapsed_time:} seconds.")
+                    break
+
+                current_player = oppositePlayer(current_player)
+                turn += 1
+
+            if (j == number_of_games_per_mcts):
+                print(Color.BOLD + "--------------------------------------" + Color.RESET)
+
+    end_dataset_generation_timer = time.time() - start_dataset_generation_timer
+    print(Color.BOLD + Color.GREEN + f"\nFinished dataset generation in {end_dataset_generation_timer:.3f} seconds." + Color.RESET)
+
+def demonstrate_dataset_generation():
+    clear_terminal()
+    print(Color.BOLD + Color.BLUE + "Examplifying how the dataset is generated through generate_dataset() method with small values for a faster generation." + Color.RESET)
+    generate_dataset(4, 2, 1000, 2.4, "test_dataset_demonstration.csv")
 
 def check_win(board, player):
     """Verifica se o jogador venceu."""
@@ -196,7 +270,7 @@ def human_vs_mcts():
                 print(Color.BLUE + f"\nMCTS Iterations: {mcts.iterations}\n" + Color.RESET)
             else:
                 mcts.update_root(column)
-            # print(f"\n\nMCTS {mctsChosenColumn + 1} -> Child {column + 1}: {mcts.root.wins} / {mcts.root.visits} = {(mcts.root.wins / (mcts.root.visits)) * 100:.3f}% || uct = {mcts.root.uct():.4f}\n\n")
+            # print(f"\n\nMCTS {mctsChosenColumn + 1} -> Child {column + 1}: {mcts.root.wins} / {mcts.root.visits} = {(mcts.root.wins / (mcts.root.visits)) * 100:.3f}% || uct = {mcts.root.uct(self.uct_constant):.4f}\n\n")
 
         else:
             print("MCTS thinking...")
@@ -338,10 +412,10 @@ class MCTS_Node:
         self.parent = parent
         self.children = []
 
-    def uct(self):
+    def uct(self, uct_constant):
         if self.visits == 0:
             return float("inf")
-        return (self.wins / self.visits) + math.sqrt(2) * math.sqrt(math.log(self.parent.visits) / self.visits)
+        return (self.wins / self.visits) + uct_constant * math.sqrt(math.log(self.parent.visits) / self.visits)
 
     def child_with_move(self, move):
         for child in self.children:
@@ -359,16 +433,17 @@ class MCTS_Node:
             print(line)
 
 class MCTS:
-    def __init__(self, root, iterations = 1000):
+    def __init__(self, root, iterations = 1000, uct_constant = math.sqrt(2)):
         self.root = root
         self.iterations = iterations
+        self.uct_constant = uct_constant
 
     def select_node(self, node):
         best_child = None
         best_uct = -float("inf")
 
         for child in node.children:
-            uct_value = child.uct()
+            uct_value = child.uct(self.uct_constant)
             if uct_value > best_uct:
                 best_uct = uct_value
                 best_child = child
@@ -436,7 +511,7 @@ class MCTS:
         best_visits = -1
 
         for child in root.children:
-            # print(f"Child {child.move + 1}: {child.wins} / {child.visits} = {(child.wins / (child.visits)) * 100:.3f}% || uct = {child.uct():.4f}")
+            # print(f"Child {child.move + 1}: {child.wins} / {child.visits} = {(child.wins / (child.visits)) * 100:.3f}% || uct = {child.uct(self.uct_constant):.4f}")
             if child.visits > best_visits:
                 best_visits = child.visits
                 best_move = child.move
