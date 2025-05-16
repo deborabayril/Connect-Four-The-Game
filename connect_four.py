@@ -120,7 +120,7 @@ def make_move(board, column, player):
             return True
     return False
 
-def save_game_to_csv(board, player, column, file_name):
+def save_turn_data_to_csv(board, player, column, file_name):
     current_board_state = [col for row in board for col in row]
     converted_board_state = [0 if col == None else 1 if col == "X" else 2 for col in current_board_state]
     data = converted_board_state + [1 if player == "X" else 2, column]
@@ -179,7 +179,7 @@ def generate_dataset(number_of_different_mcts, number_of_games_per_mcts, limit_o
                     mcts_O.root = MCTS_Node(mcts_X.root.player, mcts_X.root.move, mcts_X.root.turn,
                                        [row[:] for row in mcts_X.root.board], None)
 
-                save_game_to_csv(board, current_player, column, output_fataset_file)
+                save_turn_data_to_csv(board, current_player, column, output_fataset_file)
                 player_won, winning_line = check_win(board, current_player)
 
                 if player_won:
