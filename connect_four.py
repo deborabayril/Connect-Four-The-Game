@@ -1,14 +1,9 @@
 import random
-import numpy as np
-from collections import Counter
-import pandas as pd
-from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import LabelEncoder
 import math
 import time
 import csv
 import os
-from sklearn import datasets
+from mcts_id3 import load_tree, DecisionTreeClassifier, Node 
 
 
 class Color:
@@ -118,6 +113,19 @@ def oppositePlayer(player):
         return "O"
     return "X"
 
+def board_to_features(board):
+    """Converte o estado do tabuleiro para uma lista de features."""
+    features = []
+    for row in board:
+        for cell in row:
+            if cell is None:
+                features.append(0)
+            elif cell == 'X':
+                features.append(1)
+            else:
+                features.append(2)
+    return features
+
 def make_move(board, column, player):
     # verificar baixo para cima a primeira posição na coluna column que está disponível
     for row in range(5, -1, -1):
@@ -126,19 +134,93 @@ def make_move(board, column, player):
             return True
     return False
 
-def save_game_to_csv(board, player, column, file_name = "dataset.csv"):
-
+def save_turn_data_to_csv(board, player, column, file_name):
     current_board_state = [col for row in board for col in row]
     converted_board_state = [0 if col == None else 1 if col == "X" else 2 for col in current_board_state]
     data = converted_board_state + [1 if player == "X" else 2, column]
 
-    # current_board_state_v2 = ["-" if col == None else col for row in board for col in row]
-    # data = current_board_state_v2 + [player, column]
-
     with open(file_name, mode = "a", newline = "") as file:
         writer = csv.writer(file)
         writer.writerow(data)
-        # print(f"Salvando dados: {data}")
+
+def random_MCTS_generator(limit_of_iterations, limit_of_uct_constant):
+    board = create_board()
+    root_node = MCTS_Node("-", -1, 0, [row[:] for row in board], None)
+    iterations = random.randint(1, limit_of_iterations/100) * 100
+    uct_constant = random.uniform(0.8, limit_of_uct_constant)
+    return MCTS(root_node, iterations, uct_constant)
+
+def generate_dataset(number_of_different_mcts, number_of_games_per_mcts, limit_of_iterations, limit_of_uct_constant, output_fataset_file):
+
+    print(f"\nThe generated dataset will be a set of games of a static MCTS (that will always play first as {player_color('X')}) against random generated MCTSs which will vary in the number of iterations and uct_constant value.")
+    print(f"\nOur static MCTS will play with the following characteristics:\n- Iterations: 1000\n- uct_constant: √2 = {math.sqrt(2):.5f}")
+    print(f"\nGenerating dataset with {number_of_games_per_mcts} games for each of the {number_of_different_mcts} different MCTSs")
+
+    start_dataset_generation_timer = time.time()
+
+    for i in range(1, number_of_different_mcts + 1): # for each different mcts
+        for j in range(1, number_of_games_per_mcts + 1): # make each play number_of_games_per_mcts against each other
+            board = create_board()
+            mcts_X = MCTS(MCTS_Node("-", -1, 0, [row[:] for row in board], None))
+            mcts_O = random_MCTS_generator(limit_of_iterations, limit_of_uct_constant)
+            current_player = "X"
+            turn = 1
+
+            if (j == 1):
+                print(Color.BOLD + "\n------------- " + Color.RED + f"Opponent {i}" + Color.RESET + " -------------" + Color.RESET)
+                print(f"Opponent characteristics:\n- Iterations: {mcts_O.iterations}\n- uct_constant: {mcts_O.uct_constant:.5f}\n" + Color.RESET)
+                print(Color.BOLD + f"Starting game {j}" + Color.RESET)
+            else:
+                print(Color.BOLD + f"\nStarting game {j}" + Color.RESET)
+
+            start_time = time.time()
+
+            while True:
+                if current_player == "X":
+                    column = mcts_X.mcts_move()
+                    make_move(board, column, current_player)
+                    mcts_X.update_root(column)
+                    mcts_O.update_root(column)
+
+                else:
+                    column = mcts_O.mcts_move()
+                    make_move(board, column, current_player)
+                    mcts_X.update_root(column)
+                    mcts_O.update_root(column)
+
+                if turn == 1:
+                    mcts_X.root.parent = None
+                    mcts_O.root = MCTS_Node(mcts_X.root.player, mcts_X.root.move, mcts_X.root.turn,
+                                       [row[:] for row in mcts_X.root.board], None)
+
+                save_turn_data_to_csv(board, current_player, column, output_fataset_file)
+                player_won, winning_line = check_win(board, current_player)
+
+                if player_won:
+                    elapsed_time = time.time() - start_time
+                    print(f"Player {player_color(current_player)} won!")
+                    print(f"This whole game took {elapsed_time:.3f} seconds.")
+                    break
+
+                if check_draw(turn):
+                    elapsed_time = time.time() - start_time
+                    print("Draw!")
+                    print(f"This whole game took {elapsed_time:} seconds.")
+                    break
+
+                current_player = oppositePlayer(current_player)
+                turn += 1
+
+            if (j == number_of_games_per_mcts):
+                print(Color.BOLD + "--------------------------------------" + Color.RESET)
+
+    end_dataset_generation_timer = time.time() - start_dataset_generation_timer
+    print(Color.BOLD + Color.GREEN + f"\nFinished dataset generation in {end_dataset_generation_timer:.3f} seconds." + Color.RESET)
+
+def demonstrate_dataset_generation():
+    clear_terminal()
+    print(Color.BOLD + Color.BLUE + "Examplifying how the dataset is generated through generate_dataset() method with small values for a faster generation." + Color.RESET)
+    generate_dataset(4, 2, 1000, 2.4, "test_dataset_demonstration.csv")
 
 def check_win(board, player):
     """Verifica se o jogador venceu."""
@@ -199,10 +281,10 @@ def human_vs_mcts():
             make_move(board, column, current_player)
             if (mcts == None):
                 mcts = MCTS(MCTS_Node(current_player, column, turn, board, None))
-                # print(Color.BLUE + f"\nMCTS Iterations: {mcts.iterations}\n" + Color.RESET)
+                print(Color.BLUE + f"\nMCTS Iterations: {mcts.iterations}\n" + Color.RESET)
             else:
                 mcts.update_root(column)
-            # print(f"\n\nMCTS {mctsChosenColumn + 1} -> Child {column + 1}: {mcts.root.wins} / {mcts.root.visits} = {(mcts.root.wins / (mcts.root.visits)) * 100:.3f}% || uct = {mcts.root.uct():.4f}\n\n")
+            # print(f"\n\nMCTS {mctsChosenColumn + 1} -> Child {column + 1}: {mcts.root.wins} / {mcts.root.visits} = {(mcts.root.wins / (mcts.root.visits)) * 100:.3f}% || uct = {mcts.root.uct(self.uct_constant):.4f}\n\n")
 
         else:
             print("MCTS thinking...")
@@ -213,7 +295,6 @@ def human_vs_mcts():
             make_move(board, column, current_player)
             mcts.update_root(column)
 
-        save_game_to_csv(board, current_player, column)
         player_won, winning_line = check_win(board, current_player)
 
         if player_won:
@@ -233,101 +314,58 @@ def human_vs_mcts():
     review_game_history(mcts.root)
 
 def human_vs_decision_tree():
-    decision_tree = load_decision_tree_from_dataset()
-
-    board = create_board()
-    current_player = "X"
-    turn = 1
-
-    while True:
-        print_board(board, turn)
-
-        if current_player == "X":
-            column = valid_column_value(board, turn, current_player)
-            make_move(board, column, current_player)
-
-        else:
-            flatten_board_state = [0 if col is None else 1 if col == "X" else 2 for row in board for col in row]
-            player_id = 1 if current_player == "X" else 2
-            board_input = flatten_board_state + [player_id]
-
-            column = decision_tree.predict([board_input])[0]
-
-            if board[0][column] is not None:
-                valid_columns = [c for c in range(len(board[0])) if board[0][c] is None]
-                column = random.choice(valid_columns)
-                print(f"Predicted column was full. Fallback to column {column + 1}")
-
-            print(f"Decision Tree chose column {column + 1}")
-            make_move(board, column, current_player)
-
-        if check_win(board, current_player)[0]:
-            print_board(board, turn)
-            print(f"Player {current_player} won!")
-            break
-
-        if check_draw(turn):
-            print("Draw!")
-            break
-
-        current_player = oppositePlayer(current_player)
-        turn += 1
-
-def mcts_vs_mcts_for_dataset():
-    for i in range(1, 31):
-        print("\nStarting Game ", i)
-        start_time = time.time()
+    clear_terminal()
+    try:
+        loaded_tree = load_tree("tree.pkl") # Carregar a árvore treinada
         board = create_board()
-        current_player = "X"
+        human_player = "X"
+        computer_player = "O"
+        current_player = human_player
         turn = 1
-        last_move = ""
 
-        mcts_X = MCTS(MCTS_Node("-", -1, 0, [row[:] for row in board], None))
-        mcts_O = MCTS(MCTS_Node("-", -1, 0, [row[:] for row in board], None))
         while True:
-            #print_board(board, turn)
-            #print(last_move)
-            #print(f"Turn {turn}: Player {player_color(current_player)} is thinking...")
+            print_board(board, turn)
 
-            if current_player == "X":
-                column = mcts_X.mcts_move()
+            if current_player == human_player:
+                column = valid_column_value(board, turn, current_player)
                 make_move(board, column, current_player)
-                mcts_X.update_root(column)
-                mcts_O.update_root(column)
-
             else:
-                column = mcts_O.mcts_move()
-                make_move(board, column, current_player)
-                mcts_X.update_root(column)
-                mcts_O.update_root(column)
+                # Vez do computador (usando a árvore de decisão)
+                features = board_to_features(board)
+                predicted_column = loaded_tree.predict(features)
+                print(f"Decision Tree predicts column: {predicted_column + 1}")
 
-            if turn == 1:
-                mcts_X.root.parent = None
-                mcts_O.root = MCTS_Node(mcts_X.root.player, mcts_X.root.move, mcts_X.root.turn,
-                                   [row[:] for row in mcts_X.root.board], None)
+                if is_valid_move(board, predicted_column):
+                    make_move(board, predicted_column, current_player)
+                else:
+                    print("Decision Tree predicted an invalid move. Choosing a random valid move.")
+                    valid_moves = [col for col in range(7) if is_valid_move(board, col)]
+                    if valid_moves:
+                        predicted_column = random.choice(valid_moves)
+                        make_move(board, predicted_column, current_player)
+                    else:
+                        print("No valid moves left for the Decision Tree.")
+                        break # Fim de jogo inesperado
+                time.sleep(1) # Pequena pausa para o jogador ver o movimento do computador
 
-            last_move = f"Player {player_color(current_player)} chose column {column + 1}"
-            save_game_to_csv(board, current_player, column)
             player_won, winning_line = check_win(board, current_player)
-
             if player_won:
-                elapsed_time = time.time() - start_time
-                # print_board(board, turn, winning_line)
+                print_board(board, turn, winning_line)
                 print(f"Player {player_color(current_player)} won!")
-                print(f"This whole game took {elapsed_time:.3f} seconds.")
                 break
 
             if check_draw(turn):
-                elapsed_time = time.time() - start_time
-                #print_board(board, turn)
+                print_board(board, turn)
                 print("Draw!")
-                print(f"This whole game took {elapsed_time:.3f} seconds.")
                 break
 
             current_player = oppositePlayer(current_player)
             turn += 1
 
-        #review_game_history(mcts_X.root)
+    except FileNotFoundError:
+        print("\nError: The trained decision tree file (tree.pkl) was not found. Please train the tree first.\n")
+    except Exception as e:
+        print(f"\nAn error occurred: {e}\n")
 
 def mcts_vs_mcts():
     board = create_board()
@@ -335,8 +373,8 @@ def mcts_vs_mcts():
     turn = 1
     last_move = ""
 
-    mcts_X = MCTS(Node("-", -1, 0, [row[:] for row in board], None))
-    mcts_O = MCTS(Node("-", -1, 0, [row[:] for row in board], None))
+    mcts_X = MCTS(MCTS_Node("-", -1, 0, [row[:] for row in board], None))
+    mcts_O = MCTS(MCTS_Node("-", -1, 0, [row[:] for row in board], None))
 
     while True:
         print_board(board, turn)
@@ -357,11 +395,10 @@ def mcts_vs_mcts():
 
         if turn == 1:
             mcts_X.root.parent = None
-            mcts_O.root = Node(mcts_X.root.player, mcts_X.root.move, mcts_X.root.turn,
+            mcts_O.root = MCTS_Node(mcts_X.root.player, mcts_X.root.move, mcts_X.root.turn,
                                [row[:] for row in mcts_X.root.board], None)
 
         last_move = f"Player {player_color(current_player)} chose column {column + 1}"
-        save_game_to_csv(board, current_player, column)
         player_won, winning_line = check_win(board, current_player)
 
         if player_won:
@@ -426,8 +463,7 @@ def human_vs_computer():
         human_vs_decision_tree();
 
 def computer_vs_computer():
-    #mcts_vs_mcts()
-    mcts_vs_mcts_for_dataset()
+    mcts_vs_mcts()
 
 class MCTS_Node:
     def __init__(self, player, move, turn, board, parent):
@@ -440,10 +476,10 @@ class MCTS_Node:
         self.parent = parent
         self.children = []
 
-    def uct(self):
+    def uct(self, uct_constant):
         if self.visits == 0:
             return float("inf")
-        return (self.wins / self.visits) + math.sqrt(2) * math.sqrt(math.log(self.parent.visits) / self.visits)
+        return (self.wins / self.visits) + uct_constant * math.sqrt(math.log(self.parent.visits) / self.visits)
 
     def child_with_move(self, move):
         for child in self.children:
@@ -461,16 +497,17 @@ class MCTS_Node:
             print(line)
 
 class MCTS:
-    def __init__(self, root, iterations = 1000):
+    def __init__(self, root, iterations = 1000, uct_constant = math.sqrt(2)):
         self.root = root
         self.iterations = iterations
+        self.uct_constant = uct_constant
 
     def select_node(self, node):
         best_child = None
         best_uct = -float("inf")
 
         for child in node.children:
-            uct_value = child.uct()
+            uct_value = child.uct(self.uct_constant)
             if uct_value > best_uct:
                 best_uct = uct_value
                 best_child = child
@@ -538,7 +575,7 @@ class MCTS:
         best_visits = -1
 
         for child in root.children:
-            # print(f"Child {child.move + 1}: {child.wins} / {child.visits} = {(child.wins / (child.visits)) * 100:.3f}% || uct = {child.uct():.4f}")
+            # print(f"Child {child.move + 1}: {child.wins} / {child.visits} = {(child.wins / (child.visits)) * 100:.3f}% || uct = {child.uct(self.uct_constant):.4f}")
             if child.visits > best_visits:
                 best_visits = child.visits
                 best_move = child.move
@@ -548,150 +585,3 @@ class MCTS:
 
     def update_root(self, chosen_column):
         self.root = self.root.child_with_move(chosen_column)
-
-class DecisionTree_Node:
-    def __init__(self, feature=None, threshold=None, left=None, right=None, *, value=None):
-        self.feature = feature
-        self.threshold = threshold
-        self.left = left
-        self.right = right
-        self.value = value
-
-    def is_leaf_node(self):
-        return self.value is not None
-
-class DecisionTree:
-    def __init__(self, min_samples_split=2, max_depth=100, n_features=None):
-        self.min_samples_split = min_samples_split
-        self.max_depth = max_depth
-        self.n_features = n_features
-        self.root = None
-
-    def fit(self, X, y):
-        self.n_features = X.shape[1] if not self.n_features else min(X.shape[1], self.n_features)
-        self.root = self._grow_tree(X, y)
-
-    def _grow_tree(self, X, y, depth=0):
-        n_samples, n_feats = X.shape
-        n_labels = len(np.unique(y))
-
-        # check the stopping criteria
-        if (depth >= self.max_depth or n_labels == 1 or n_samples < self.min_samples_split):
-            leaf_value = self._most_common_label(y)
-            return DecisionTree_Node(value=leaf_value)
-
-        feat_idxs = np.random.choice(n_feats, self.n_features, replace=False)
-
-        # find the best split
-        best_feature, best_thresh = self._best_split(X, y, feat_idxs)
-
-        # create child nodes
-        left_idxs, right_idxs = self._split(X[:, best_feature], best_thresh)
-
-        if len(left_idxs) == 0 or len(right_idxs) == 0:
-            leaf_value = self._most_common_label(y)
-            return DecisionTree_Node(value=leaf_value)
-
-        left = self._grow_tree(X[left_idxs, :], y[left_idxs], depth + 1)
-        right = self._grow_tree(X[right_idxs, :], y[right_idxs], depth + 1)
-        return DecisionTree_Node(best_feature, best_thresh, left, right)
-
-    def _best_split(self, X, y, feat_idxs):
-        best_gain = -1
-        split_idx, split_threshold = None, None
-
-        for feat_idx in feat_idxs:
-            X_column = X[:, feat_idx]
-            thresholds = np.unique(X_column)
-
-            for thr in thresholds:
-                # calculate the information gain
-                gain = self._information_gain(y, X_column, thr)
-
-                if gain > best_gain:
-                    best_gain = gain
-                    split_idx = feat_idx
-                    split_threshold = thr
-
-        return split_idx, split_threshold
-
-    def _information_gain(self, y, X_column, threshold):
-        # parent entropy
-        parent_entropy = self._entropy(y)
-
-        # create children
-        left_idxs, right_idxs = self._split(X_column, threshold)
-
-        if len(left_idxs) == 0 or len(right_idxs) == 0:
-            return 0
-
-        # calculate the weighted avg. entropy of children
-        n = len(y)
-        n_l, n_r = len(left_idxs), len(right_idxs)
-        e_l, e_r = self._entropy(y[left_idxs]), self._entropy(y[right_idxs])
-        child_entropy = (n_l / n) * e_l + (n_r / n) * e_r
-
-        # calculate the IG
-        information_gain = parent_entropy - child_entropy
-        return information_gain
-
-    def _split(self, X_column, split_thresh):
-        left_idxs = np.argwhere(X_column <= split_thresh).flatten()
-        right_idxs = np.argwhere(X_column > split_thresh).flatten()
-        return left_idxs, right_idxs
-
-    def _entropy(self, y):
-        hist = np.bincount(y)
-        ps = hist / len(y)
-        return -np.sum([p * np.log(p) for p in ps if p > 0])
-
-    def _most_common_label(self, y):
-        counter = Counter(y)
-        value = counter.most_common(1)[0][0]
-        return value
-
-    def predict(self, X):
-        return np.array([self._traverse_tree(x, self.root) for x in X])
-
-    def _traverse_tree(self, x, node):
-        if node.is_leaf_node():
-            return node.value
-
-        if x[node.feature] <= node.threshold:
-            return self._traverse_tree(x, node.left)
-        return self._traverse_tree(x, node.right)
-
-def load_decision_tree_from_dataset():
-    df = pd.read_csv("dataset.csv")
-    X = df.iloc[:, :-1].values
-    y = df.iloc[:, -1].values
-
-    # If y contains strings like "3", convert to int
-    # y = y.astype(int)
-
-    clf = DecisionTree(max_depth=20)
-    clf.fit(X, y)
-    return clf
-
-def testing_decision_tree_with_iris():
-    df = pd.read_csv("iris.csv")
-    X = df.iloc[:, :-1].values
-    y = df.iloc[:, -1].values
-
-    # Encode string labels to integers
-    # le = LabelEncoder()
-    # y = le.fit_transform(y)
-
-    X_train, X_test, y_train, y_test = train_test_split(
-        X, y, test_size=0.0, random_state=1234
-    )
-
-    clf = DecisionTree(max_depth = 20)
-    clf.fit(X_train, y_train)
-    predictions = clf.predict(X_test)
-
-    def accuracy(y_true, y_pred):
-        return np.sum(y_true == y_pred) / len(y_true)
-
-    acc = accuracy(y_test, predictions)
-    print(f"Accuracy {acc:.4f}")
