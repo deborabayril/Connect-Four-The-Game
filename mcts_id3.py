@@ -148,5 +148,3 @@ if __name__ == "__main__":
     loaded_tree = load_tree("tree.pkl")
     print("\n--- Visualização da Árvore ---")
     loaded_tree.print_tree()
-
-#Para chamar a função use python mcts_id3.py --csv dataset.csv --max-depth 8
