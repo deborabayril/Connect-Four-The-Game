@@ -1,5 +1,5 @@
-from __future__ import annotations # not needed
-from typing import List, Dict, Optional # not needed
+from __future__ import annotations
+from typing import List, Dict, Optional
 from collections import Counter, defaultdict
 from IPython.display import clear_output
 import random
@@ -56,7 +56,7 @@ def start(chosen_option):
     else:
         demonstrate_dataset_generation()
 
-def print_algorithm_menu(invalid_input):
+def print_human_vs_computer_menu(invalid_input):
     clear_terminal()
 
     print("==============================")
@@ -133,7 +133,6 @@ def oppositePlayer(player):
     return "X"
 
 def board_to_features(board):
-    """Converte o estado do tabuleiro para uma lista de features."""
     features = []
     for row in board:
         for cell in row:
@@ -454,7 +453,7 @@ def mcts_vs_decision_tree():
     last_move = ""
     game_history = ""
 
-    mcts = MCTS(MCTSNode("-", -1, 0, [row[:] for row in board], None), 21)
+    mcts = MCTS(MCTSNode("-", -1, 0, [row[:] for row in board], None))
     decision_tree = create_tree()
 
     while True:
@@ -545,11 +544,11 @@ def human_vs_human():
 
 def human_vs_computer():
 
-    print_algorithm_menu(False)
+    print_human_vs_computer_menu(False)
     algorithm_choice = input()
 
     while not valid_algorithm(algorithm_choice):
-        print_algorithm_menu(True)
+        print_human_vs_computer_menu(True)
         algorithm_choice = input()
 
     if (algorithm_choice == "1"):
